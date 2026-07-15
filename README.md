@@ -22,9 +22,11 @@ Wage Predictor is a sibling of Semester Scheduler. The two applications share th
 
 See [design.md](design.md) for the complete visual system and product-specific application guidance.
 
+See [docs/specification-index.md](docs/specification-index.md) for the functional model, calendar research, data model, forecasting rules, and open CPD decisions.
+
 ## Current status
 
-The repository currently contains the shared design foundation and reusable React UI primitives. Application architecture and forecasting behavior will be added next.
+The repository now contains the shared design foundation, reusable React UI primitives, and an audited multi-year product/forecasting specification. The next implementation gate is resolving the P0 CPD policy and data-access questions.
 
 ## Repository layout
 
