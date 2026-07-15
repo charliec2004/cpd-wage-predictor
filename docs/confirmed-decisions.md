@@ -7,6 +7,7 @@ These decisions supersede conflicting provisional language elsewhere in the spec
 ## Wage and work-study calculation
 
 - Ordinary wage cost is `worked hours × hourly wage`. Taxes, benefits, and employer burden are out of scope.
+- New workers and planned scenario hires default to `$16.90/hour`; staff can replace that value for any worker.
 - During eligible periods, each eligible wage dollar consumes one dollar of the student's work-study award and CPD's regular student-worker budget pays zero for that dollar.
 - Once the award is exhausted, subsequent wages are paid by CPD's regular student-worker budget.
 - A typical award is $3,000, but the award is editable per student and academic year.

@@ -52,7 +52,7 @@ function SetupPath({ year, budgetDraft, setBudgetDraft, commitBudget, onOpenWork
   year: FiscalYear;
   budgetDraft: string;
   setBudgetDraft: (value: string) => void;
-  commitBudget: () => void;
+  commitBudget: (value?: string) => void;
   onOpenWorkers: () => void;
   onOpenSchedule: () => void;
 }) {
@@ -75,17 +75,14 @@ function SetupPath({ year, budgetDraft, setBudgetDraft, commitBudget, onOpenWork
           <div className="flex max-w-64 gap-2">
             <MoneyInput
               aria-label="Student-worker budget"
+              placeholder="Enter amount"
               value={budgetDraft}
-              onChange={(event) => setBudgetDraft(event.target.value)}
-              onBlur={commitBudget}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  commitBudget();
-                  event.currentTarget.blur();
-                }
+              onValueChange={(value) => {
+                setBudgetDraft(value);
+                commitBudget(value);
               }}
             />
-            {!hasBudget && <Button size="sm" onClick={commitBudget}>Set</Button>}
+            {!hasBudget && <Button size="sm" onClick={() => commitBudget()}>Set</Button>}
           </div>
         </Step>
         <Step number={2} title="Workers" detail={hasWorkers ? `${year.workers.length} added` : 'Add wages and work-study details.'} complete={hasWorkers}>
@@ -198,12 +195,12 @@ function SummaryItem({ label, value, icon, green = false }: { label: string; val
 }
 
 export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule }: OverviewProps) {
-  const [budgetDraft, setBudgetDraft] = React.useState(String(year.budgetCents / 100));
-  React.useEffect(() => setBudgetDraft(String(year.budgetCents / 100)), [year.budgetCents]);
-  const commitBudget = () => {
-    const parsed = Number(budgetDraft.replaceAll(',', '').replace('$', '').trim());
+  const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
+  React.useEffect(() => setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100)), [year.id, year.budgetCents]);
+  const commitBudget = (value = budgetDraft) => {
+    const parsed = Number(value.replaceAll(',', '').replace('$', '').trim());
     if (Number.isFinite(parsed) && parsed >= 0) onBudgetChange(Math.round(parsed * 100));
-    else setBudgetDraft(String(year.budgetCents / 100));
+    else setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
   };
   const hasSchedule = year.workers.some((worker) => worker.schedules.some((schedule) => schedule.recurringShifts.length > 0 || schedule.datedShifts.length > 0));
   const ready = year.budgetCents > 0 && year.workers.length > 0 && hasSchedule;

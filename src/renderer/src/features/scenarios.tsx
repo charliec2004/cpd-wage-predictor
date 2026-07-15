@@ -21,7 +21,7 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
   const [selectedId, setSelectedId] = React.useState(year.scenarios[0]?.id ?? '');
   const [scenarioName, setScenarioName] = React.useState('');
   const [role, setRole] = React.useState<ForecastScenario['role']>('custom');
-  const [hire, setHire] = React.useState({ label: '', startDate: '', wage: '16.50', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
+  const [hire, setHire] = React.useState({ label: '', startDate: '', wage: '16.90', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
   const [departure, setDeparture] = React.useState({ workerId: year.workers[0]?.id ?? '', endDate: '' });
   const selected = year.scenarios.find((scenario) => scenario.id === selectedId);
   const baseline = React.useMemo(() => calculateForecast(year, todayInLosAngeles()), [year]);
@@ -67,7 +67,7 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
         },
       ],
     });
-    setHire({ label: '', startDate: '', wage: '16.50', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
+    setHire({ label: '', startDate: '', wage: '16.90', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
   };
 
   const addDeparture = () => {
@@ -114,10 +114,10 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label="Position label"><Input placeholder="Spring front desk hire" value={hire.label} onChange={(event) => setHire({ ...hire, label: event.target.value })} /></Field>
                   <Field label="Expected start"><DatePicker required min={year.startDate} max={year.endDate} value={hire.startDate} onChange={(value) => setHire({ ...hire, startDate: value })} aria-label="Expected start" /></Field>
-                  <Field label="Hourly wage"><MoneyInput value={hire.wage} onChange={(event) => setHire({ ...hire, wage: event.target.value })} /></Field>
+                  <Field label="Hourly wage"><MoneyInput value={hire.wage} onValueChange={(value) => setHire((current) => ({ ...current, wage: value }))} /></Field>
                   <Field label="Average hours / week"><HourInput value={hire.weeklyHours} min={0} max={40} onValueChange={(value) => setHire({ ...hire, weeklyHours: value })} /></Field>
                 </div>
-                <div className="mt-3 flex items-center gap-2"><Checkbox id="scenario-hire-ws" checked={hire.hasWorkStudy} onCheckedChange={(checked) => setHire({ ...hire, hasWorkStudy: checked === true })} /><label htmlFor="scenario-hire-ws" className="text-[12px] font-medium">Assume work-study</label>{hire.hasWorkStudy && <MoneyInput aria-label="Work-study award" className="w-28" value={hire.award} onChange={(event) => setHire({ ...hire, award: event.target.value })} />}</div>
+                <div className="mt-3 flex items-center gap-2"><Checkbox id="scenario-hire-ws" checked={hire.hasWorkStudy} onCheckedChange={(checked) => setHire({ ...hire, hasWorkStudy: checked === true })} /><label htmlFor="scenario-hire-ws" className="text-[12px] font-medium">Assume work-study</label>{hire.hasWorkStudy && <MoneyInput aria-label="Work-study award" className="w-28" value={hire.award} onValueChange={(value) => setHire((current) => ({ ...current, award: value }))} />}</div>
                 <Button className="mt-4 w-full" variant="outline" onClick={addHire}><Plus className="h-4 w-4" />Add planned hire</Button>
                 <div className="mt-4 divide-y divide-border border-t border-border">{selected.plannedHires.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{item.label}</div><div className="font-mono text-[10px] text-muted-foreground">{item.startDate} · {(item.averageWeeklyMinutes / 60).toFixed(1)}h/week · {formatCurrency(item.hourlyRateCents)}/hr</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove planned hire" onClick={() => updateSelected({ ...selected, plannedHires: selected.plannedHires.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>
               </section>

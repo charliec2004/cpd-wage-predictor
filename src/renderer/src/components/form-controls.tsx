@@ -40,11 +40,46 @@ export function Select({ className, children, ...props }: React.SelectHTMLAttrib
   );
 }
 
-export function MoneyInput({ className, ...props }: InputProps) {
-  return (
-    <div className="relative">
-      <span className="pointer-events-none absolute left-2.5 top-1.5 text-[13px] text-muted-foreground">$</span>
-      <Input inputMode="decimal" className={cn('pl-6 font-mono tabular-nums', className)} {...props} />
-    </div>
-  );
+interface MoneyInputProps extends Omit<InputProps, 'value' | 'defaultValue' | 'onChange'> {
+  value: string;
+  onValueChange: (value: string) => void;
 }
+
+export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
+  ({ className, value, onValueChange, onBlur, onKeyDown, ...props }, forwardedRef) => {
+    const [draft, setDraft] = React.useState(value);
+    React.useEffect(() => setDraft(value), [value]);
+
+    const commit = () => onValueChange(draft);
+
+    return (
+      <div className="relative">
+        <span className="pointer-events-none absolute left-2.5 top-1.5 text-[13px] text-muted-foreground">$</span>
+        <Input
+          {...props}
+          ref={forwardedRef}
+          inputMode="decimal"
+          value={draft}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={(event) => {
+            commit();
+            onBlur?.(event);
+          }}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              commit();
+              event.currentTarget.blur();
+            } else if (event.key === 'Escape') {
+              setDraft(value);
+              event.currentTarget.blur();
+            }
+            onKeyDown?.(event);
+          }}
+          className={cn('pl-6 font-mono tabular-nums', className)}
+        />
+      </div>
+    );
+  },
+);
+
+MoneyInput.displayName = 'MoneyInput';
