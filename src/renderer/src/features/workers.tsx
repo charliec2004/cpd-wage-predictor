@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
 import { ConfirmDialog } from '../../components/ui/confirm-dialog';
 import { DialogShell } from '../../components/ui/dialog-shell';
+import { DatePicker } from '../../components/ui/date-picker';
 import { HourInput } from '../../components/ui/hour-input';
 import { Input } from '../../components/ui/input';
 import { Field, MoneyInput, Select } from '../components/form-controls';
@@ -210,8 +211,8 @@ export function Workers({ year, onChange }: WorkersProps) {
         <div className="grid gap-4 md:grid-cols-2">
           <Field label="Worker name"><Input autoFocus value={draft.name} maxLength={150} onChange={(event) => setDraft({ ...draft, name: event.target.value })} /></Field>
           <Field label="Status"><Select value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value as Worker['status'] })}><option value="active">Active</option><option value="planned">Planned</option><option value="paused">Paused</option><option value="ended">Ended</option></Select></Field>
-          <Field label="Active start"><Input type="date" min={year.startDate} max={year.endDate} value={draft.activeStart} onChange={(event) => setDraft({ ...draft, activeStart: event.target.value })} /></Field>
-          <Field label="Active end" hint="Leave blank if unknown."><Input type="date" min={draft.activeStart} max={year.endDate} value={draft.activeEnd} onChange={(event) => setDraft({ ...draft, activeEnd: event.target.value })} /></Field>
+          <Field label="Active start"><DatePicker required min={year.startDate} max={year.endDate} value={draft.activeStart} onChange={(value) => setDraft({ ...draft, activeStart: value })} aria-label="Active start" /></Field>
+          <Field label="Active end" hint="Leave blank if unknown."><DatePicker min={draft.activeStart} max={year.endDate} value={draft.activeEnd} onChange={(value) => setDraft({ ...draft, activeEnd: value })} placeholder="No end date" aria-label="Active end" /></Field>
           <Field label="Hourly wage"><MoneyInput value={draft.hourlyRate} onChange={(event) => setDraft({ ...draft, hourlyRate: event.target.value })} /></Field>
           <div className="flex items-center gap-2 pt-6"><Checkbox id="work-study" checked={draft.hasWorkStudy} onCheckedChange={(checked) => setDraft({ ...draft, hasWorkStudy: checked === true })} /><label htmlFor="work-study" className="text-[13px] font-medium">Has work-study</label></div>
         </div>
@@ -220,7 +221,7 @@ export function Workers({ year, onChange }: WorkersProps) {
             <div className="grid gap-4 md:grid-cols-3">
               <Field label="Starting award"><MoneyInput value={draft.award} onChange={(event) => setDraft({ ...draft, award: event.target.value })} /></Field>
               <Field label="Official remaining balance" hint="Optional recalibration."><MoneyInput placeholder="Not available" value={draft.officialBalance} onChange={(event) => setDraft({ ...draft, officialBalance: event.target.value })} /></Field>
-              <Field label="Balance as of"><Input type="date" disabled={!draft.officialBalance} value={draft.officialBalanceDate} onChange={(event) => setDraft({ ...draft, officialBalanceDate: event.target.value })} /></Field>
+              <Field label="Balance as of"><DatePicker disabled={!draft.officialBalance} min={year.startDate} max={year.endDate} value={draft.officialBalanceDate} onChange={(value) => setDraft({ ...draft, officialBalanceDate: value })} aria-label="Balance as of" /></Field>
             </div>
             <div className="mt-4 flex items-center gap-2"><Checkbox id="outside-job" checked={draft.hasOutsideJob} onCheckedChange={(checked) => setDraft({ ...draft, hasOutsideJob: checked === true })} /><label htmlFor="outside-job" className="text-[13px] font-medium">Estimate another job that uses the same award</label></div>
             {draft.hasOutsideJob && (
@@ -228,7 +229,7 @@ export function Workers({ year, onChange }: WorkersProps) {
                 <Field label="Other job"><Input value={draft.outsideJobName} onChange={(event) => setDraft({ ...draft, outsideJobName: event.target.value })} /></Field>
                 <Field label="Other hourly wage"><MoneyInput value={draft.outsideJobWage} onChange={(event) => setDraft({ ...draft, outsideJobWage: event.target.value })} /></Field>
                 <Field label="Average hours / week"><HourInput value={draft.outsideJobHours} min={0} max={40} onValueChange={(value) => setDraft({ ...draft, outsideJobHours: value })} /></Field>
-                <Field label="Estimate begins"><Input type="date" value={draft.outsideJobStart} onChange={(event) => setDraft({ ...draft, outsideJobStart: event.target.value })} /></Field>
+                <Field label="Estimate begins"><DatePicker required min={year.startDate} max={year.endDate} value={draft.outsideJobStart} onChange={(value) => setDraft({ ...draft, outsideJobStart: value })} aria-label="Estimate begins" /></Field>
               </div>
             )}
           </div>

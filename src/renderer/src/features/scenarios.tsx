@@ -3,6 +3,7 @@ import { ArrowRight, GitBranch, Plus, Trash2, UserPlus } from 'lucide-react';
 import type { FiscalYear, ForecastScenario } from '../../../shared/workspace';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
+import { DatePicker } from '../../components/ui/date-picker';
 import { Checkbox } from '../../components/ui/checkbox';
 import { HourInput } from '../../components/ui/hour-input';
 import { Input } from '../../components/ui/input';
@@ -112,7 +113,7 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
                 <div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-muted-foreground" /><h2 className="text-[13px] font-semibold">Planned hires</h2></div>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <Field label="Position label"><Input placeholder="Spring front desk hire" value={hire.label} onChange={(event) => setHire({ ...hire, label: event.target.value })} /></Field>
-                  <Field label="Expected start"><Input type="date" min={year.startDate} max={year.endDate} value={hire.startDate} onChange={(event) => setHire({ ...hire, startDate: event.target.value })} /></Field>
+                  <Field label="Expected start"><DatePicker required min={year.startDate} max={year.endDate} value={hire.startDate} onChange={(value) => setHire({ ...hire, startDate: value })} aria-label="Expected start" /></Field>
                   <Field label="Hourly wage"><MoneyInput value={hire.wage} onChange={(event) => setHire({ ...hire, wage: event.target.value })} /></Field>
                   <Field label="Average hours / week"><HourInput value={hire.weeklyHours} min={0} max={40} onValueChange={(value) => setHire({ ...hire, weeklyHours: value })} /></Field>
                 </div>
@@ -125,7 +126,7 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
                 <p className="mt-1 text-[11px] leading-4 text-muted-foreground">End an existing worker's forecast earlier in this scenario only.</p>
                 <div className="mt-4 space-y-3">
                   <Field label="Worker"><Select value={departure.workerId} onChange={(event) => setDeparture({ ...departure, workerId: event.target.value })}><option value="">Select worker</option>{year.workers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name}</option>)}</Select></Field>
-                  <Field label="Scenario end date"><Input type="date" min={year.startDate} max={year.endDate} value={departure.endDate} onChange={(event) => setDeparture({ ...departure, endDate: event.target.value })} /></Field>
+                  <Field label="Scenario end date"><DatePicker required min={year.startDate} max={year.endDate} value={departure.endDate} onChange={(value) => setDeparture({ ...departure, endDate: value })} aria-label="Scenario end date" /></Field>
                   <Button className="w-full" variant="outline" onClick={addDeparture}><Plus className="h-4 w-4" />Set scenario departure</Button>
                 </div>
                 <div className="mt-4 divide-y divide-border border-t border-border">{selected.departureOverrides.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{year.workers.find((worker) => worker.id === item.workerId)?.name ?? 'Unknown worker'}</div><div className="font-mono text-[10px] text-muted-foreground">Ends {item.endDate}</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove scenario departure" onClick={() => updateSelected({ ...selected, departureOverrides: selected.departureOverrides.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>

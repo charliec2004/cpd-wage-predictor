@@ -30,6 +30,10 @@ These are the Semester Scheduler's existing semantic tokens, not a visual fork.
 
 Before a forecast can exist, the metrics, runway, and empty table are replaced by one three-step setup path: Budget, Workers, Schedule. Completed steps use the Semester Scheduler's exact productive green; the next incomplete step receives the primary green action. Once setup is complete, the setup path disappears.
 
+The empty state also shows a plain-language academic-period model. Each row states the date range, whether shifts repeat weekly or are entered week by week, and whether work-study is available or CPD pays the wage. This replaces the earlier unlabeled proportional color bar, whose spatial encoding was accurate but unnecessarily hard to interpret.
+
+All dates use one application-owned picker composed from a popover and React DayPicker, following shadcn's pattern. Native browser date fields are intentionally avoided because their appearance, layering, and interaction differ across macOS and Windows. Selected dates use productive green; dates outside the allowed fiscal range are visibly disabled; optional dates can be cleared.
+
 Forms and explanation screens remain constrained. The fiscal runway and schedule grids use the full workspace width. A permanent sidebar is intentionally omitted. Green remains reserved for productive actions, work-study coverage, and healthy budget progress; tabs and neutral chrome remain monochrome, matching Semester Scheduler.
 
 ## Signature element

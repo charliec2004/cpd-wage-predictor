@@ -3,7 +3,7 @@ import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDo
 import type { FiscalYear } from '../../../shared/workspace';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
-import { Input } from '../../components/ui/input';
+import { DatePicker } from '../../components/ui/date-picker';
 import type { ForecastResult, WeeklyForecastRow } from '../domain/forecast';
 import { formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
@@ -111,8 +111,8 @@ function FiscalContext({ year, asOfDate, onOpenSchedule }: { year: FiscalYear; a
   const currentPeriod = year.periods.find((period) => asOfDate >= period.startDate && asOfDate <= period.endDate);
   const nextPeriod = year.periods.find((period) => period.startDate > asOfDate);
   const nextClosure = year.closures.find((closure) => closure.date >= asOfDate);
-  const totalDays = daysInclusive(year.startDate, year.endDate);
   const remainingDays = daysInclusive(asOfDate, year.endDate);
+  const visiblePeriods = year.periods.filter((period) => daysInclusive(period.startDate, period.endDate) >= 7);
 
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="fiscal-calendar-heading">
@@ -129,32 +129,36 @@ function FiscalContext({ year, asOfDate, onOpenSchedule }: { year: FiscalYear; a
           </div>
         </div>
 
-        <div className="p-5">
-          <div className="flex items-center justify-between gap-4">
-            <div><h2 id="fiscal-calendar-heading" className="text-[14px] font-semibold">Fiscal calendar</h2><p className="mt-0.5 text-[11px] text-muted-foreground">Green periods can use work-study awards.</p></div>
-            <Button variant="ghost" size="sm" onClick={onOpenSchedule}>Edit dates<ArrowRight className="h-3.5 w-3.5" /></Button>
+        <div>
+          <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
+            <div>
+              <h2 id="fiscal-calendar-heading" className="text-[14px] font-semibold">How this year is modeled</h2>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Every period has its own schedule style and work-study rule.</p>
+            </div>
+            <Button variant="outline" size="sm" onClick={onOpenSchedule}>Edit periods<ArrowRight className="h-3.5 w-3.5" /></Button>
           </div>
-          <div className="mt-5 flex h-8 w-full overflow-hidden rounded-md bg-surface-800">
-            {year.periods.map((period) => {
-              const width = (daysInclusive(period.startDate, period.endDate) / totalDays) * 100;
+          <div className="grid grid-cols-[minmax(160px,1.15fr)_minmax(150px,1fr)_minmax(150px,1fr)] border-b border-border bg-surface-900 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
+            <span>Academic period</span><span>Schedule entry</span><span>Wage coverage</span>
+          </div>
+          <div className="divide-y divide-border">
+            {visiblePeriods.map((period) => {
+              const current = period.id === currentPeriod?.id;
               return (
-                <div
-                  key={period.id}
-                  className={period.workStudyEligible ? 'border-r border-background/40 bg-[hsl(var(--action-primary))]' : 'border-r border-background/30 bg-surface-700'}
-                  style={{ width: `${width}%` }}
-                  title={`${period.name}: ${formatShortDate(period.startDate)}–${formatShortDate(period.endDate)}${period.workStudyEligible ? ' · work-study eligible' : ''}`}
-                />
+                <div key={period.id} className={`grid grid-cols-[minmax(160px,1.15fr)_minmax(150px,1fr)_minmax(150px,1fr)] items-center gap-3 px-5 py-2.5 text-[11px] ${current ? 'bg-[hsl(var(--action-primary)/0.08)]' : ''}`}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2"><span className="truncate text-[12px] font-semibold">{period.name}</span>{current && <Badge className="border-[hsl(var(--action-primary-border)/0.45)] bg-[hsl(var(--action-primary)/0.12)] text-[hsl(var(--success-accent))]">Current</Badge>}</div>
+                    <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{formatShortDate(period.startDate)}–{formatShortDate(period.endDate)}</div>
+                  </div>
+                  <div className="text-muted-foreground">{period.scheduleMode === 'recurring' ? 'Repeats each week' : 'Enter week by week'}</div>
+                  <div className={`flex items-center gap-2 font-medium ${period.workStudyEligible ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${period.workStudyEligible ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />
+                    {period.workStudyEligible ? 'Work-study available' : 'CPD pays wages'}
+                  </div>
+                </div>
               );
             })}
           </div>
-          <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 xl:grid-cols-5">
-            {year.periods.filter((period) => daysInclusive(period.startDate, period.endDate) >= 7).map((period) => (
-              <div key={period.id} className="min-w-0">
-                <div className="truncate text-[11px] font-medium">{period.name}</div>
-                <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{formatShortDate(period.startDate)}–{formatShortDate(period.endDate)}</div>
-              </div>
-            ))}
-          </div>
+          <div className="border-t border-border px-5 py-2.5 text-[10px] text-muted-foreground">Office closures remove overlapping scheduled hours automatically.</div>
         </div>
       </div>
     </section>
@@ -227,8 +231,8 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
               {year.scenarios.map((scenario) => <option key={scenario.id} value={scenario.id}>{scenario.name}</option>)}
             </Select>
           </Field>
-          <Field label="As of" className="w-36">
-            <Input type="date" min={year.startDate} max={year.endDate} value={asOfDate} onChange={(event) => onAsOfDateChange(event.target.value)} />
+          <Field label="As of" className="w-40">
+            <DatePicker required min={year.startDate} max={year.endDate} value={asOfDate} onChange={onAsOfDateChange} aria-label="As of" />
           </Field>
         </div>
       </div>

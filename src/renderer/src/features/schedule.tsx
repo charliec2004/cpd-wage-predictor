@@ -4,6 +4,7 @@ import type { AcademicPeriod, FiscalYear, OfficeClosure, RecurringShift, Worker,
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { Checkbox } from '../../components/ui/checkbox';
+import { DatePicker } from '../../components/ui/date-picker';
 import { Input } from '../../components/ui/input';
 import { NoticePanel } from '../../components/ui/notice-panel';
 import { Field, Select } from '../components/form-controls';
@@ -155,7 +156,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             {schedule && period?.scheduleMode === 'week-specific' && (
               <div className="p-4">
                 <div className="grid items-end gap-3 md:grid-cols-[1fr_140px_140px_auto]">
-                  <Field label="Work date"><Input type="date" min={period.startDate} max={period.endDate} value={datedDraft.date} onChange={(event) => setDatedDraft({ ...datedDraft, date: event.target.value })} /></Field>
+                  <Field label="Work date"><DatePicker required min={period.startDate} max={period.endDate} value={datedDraft.date} onChange={(value) => setDatedDraft({ ...datedDraft, date: value })} aria-label="Work date" /></Field>
                   <Field label="Starts"><Input type="time" value={datedDraft.start} onChange={(event) => setDatedDraft({ ...datedDraft, start: event.target.value })} /></Field>
                   <Field label="Ends"><Input type="time" value={datedDraft.end} onChange={(event) => setDatedDraft({ ...datedDraft, end: event.target.value })} /></Field>
                   <Button onClick={addDatedShift}><Plus className="h-4 w-4" />Add shift</Button>
@@ -174,7 +175,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             <div className="border-b border-border p-4"><div className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-muted-foreground" /><h2 className="text-[14px] font-semibold">Office closures</h2></div><p className="mt-1 text-[12px] text-muted-foreground">Closures automatically suppress overlapping planned shifts.</p></div>
             <div className="space-y-3 p-4">
               <Field label="Closure name"><Input placeholder="Office closed" value={closureDraft.name} onChange={(event) => setClosureDraft({ ...closureDraft, name: event.target.value })} /></Field>
-              <Field label="Date"><Input type="date" min={year.startDate} max={year.endDate} value={closureDraft.date} onChange={(event) => setClosureDraft({ ...closureDraft, date: event.target.value })} /></Field>
+              <Field label="Date"><DatePicker required min={year.startDate} max={year.endDate} value={closureDraft.date} onChange={(value) => setClosureDraft({ ...closureDraft, date: value })} aria-label="Closure date" /></Field>
               <div className="flex items-center gap-2"><Checkbox id="partial-closure" checked={closureDraft.partial} onCheckedChange={(checked) => setClosureDraft({ ...closureDraft, partial: checked === true })} /><label htmlFor="partial-closure" className="text-[12px] font-medium">Partial-day closure</label></div>
               {closureDraft.partial && <div className="grid grid-cols-2 gap-3"><Field label="Closed from"><Input type="time" value={closureDraft.start} onChange={(event) => setClosureDraft({ ...closureDraft, start: event.target.value })} /></Field><Field label="Closed until"><Input type="time" value={closureDraft.end} onChange={(event) => setClosureDraft({ ...closureDraft, end: event.target.value })} /></Field></div>}
               <Button className="w-full" variant="outline" onClick={addClosure}><Plus className="h-4 w-4" />Add closure</Button>
@@ -204,8 +205,8 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                 return (
                   <tr key={academicPeriod.id}>
                     <td className="border-b border-border px-3 py-2.5 font-medium">{academicPeriod.name}</td>
-                    <td className="border-b border-border px-3 py-2.5"><Input aria-label={`${academicPeriod.name} start date`} type="date" disabled={index === 0} min={previous ? addDays(previous.startDate, 1) : year.startDate} max={academicPeriod.endDate} value={academicPeriod.startDate} onChange={(event) => changePeriodBoundary(index, 'start', event.target.value)} /></td>
-                    <td className="border-b border-border px-3 py-2.5"><Input aria-label={`${academicPeriod.name} end date`} type="date" disabled={index === year.periods.length - 1} min={academicPeriod.startDate} max={following ? addDays(following.endDate, -1) : year.endDate} value={academicPeriod.endDate} onChange={(event) => changePeriodBoundary(index, 'end', event.target.value)} /></td>
+                    <td className="border-b border-border px-3 py-2.5"><DatePicker required aria-label={`${academicPeriod.name} start date`} disabled={index === 0} min={previous ? addDays(previous.startDate, 1) : year.startDate} max={academicPeriod.endDate} value={academicPeriod.startDate} onChange={(value) => changePeriodBoundary(index, 'start', value)} /></td>
+                    <td className="border-b border-border px-3 py-2.5"><DatePicker required aria-label={`${academicPeriod.name} end date`} disabled={index === year.periods.length - 1} min={academicPeriod.startDate} max={following ? addDays(following.endDate, -1) : year.endDate} value={academicPeriod.endDate} onChange={(value) => changePeriodBoundary(index, 'end', value)} /></td>
                     <td className="border-b border-border px-3 py-2.5"><Select aria-label={`${academicPeriod.name} schedule style`} value={academicPeriod.scheduleMode} onChange={(event) => onPeriodsChange(year.periods.map((candidate) => candidate.id === academicPeriod.id ? { ...candidate, scheduleMode: event.target.value as AcademicPeriod['scheduleMode'] } : candidate))}><option value="recurring">Recurring weekly</option><option value="week-specific">Week-specific</option></Select></td>
                     <td className="border-b border-border px-3 py-2.5"><div className="flex items-center gap-2"><Checkbox id={eligibleId} checked={academicPeriod.workStudyEligible} onCheckedChange={(checked) => onPeriodsChange(year.periods.map((candidate) => candidate.id === academicPeriod.id ? { ...candidate, workStudyEligible: checked === true } : candidate))} /><label htmlFor={eligibleId} className="text-[12px]">{academicPeriod.workStudyEligible ? 'Eligible' : 'Not eligible'}</label></div></td>
                   </tr>
