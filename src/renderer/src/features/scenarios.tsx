@@ -5,6 +5,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
 import { Checkbox } from '../../components/ui/checkbox';
+import { DialogShell } from '../../components/ui/dialog-shell';
 import { HourInput } from '../../components/ui/hour-input';
 import { Input } from '../../components/ui/input';
 import { Field, MoneyInput, Select } from '../components/form-controls';
@@ -15,10 +16,20 @@ import { formatCurrency, parseDollarInput } from '../lib/format';
 interface ScenariosProps {
   year: FiscalYear;
   onChange: (scenarios: ForecastScenario[]) => void;
+  createRequestKey?: number;
+  onScenarioCreated?: (scenarioId: string) => void;
 }
 
-export function Scenarios({ year, onChange }: ScenariosProps) {
+const scenarioRoleLabels: Record<ForecastScenario['role'], string> = {
+  custom: 'Custom',
+  'plausible-low': 'Lower spending',
+  expected: 'Most likely',
+  'prudent-high': 'Higher spending',
+};
+
+export function Scenarios({ year, onChange, createRequestKey = 0, onScenarioCreated }: ScenariosProps) {
   const [selectedId, setSelectedId] = React.useState(year.scenarios[0]?.id ?? '');
+  const [createOpen, setCreateOpen] = React.useState(false);
   const [scenarioName, setScenarioName] = React.useState('');
   const [role, setRole] = React.useState<ForecastScenario['role']>('custom');
   const [hire, setHire] = React.useState({ label: '', startDate: '', wage: '16.90', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
@@ -30,6 +41,10 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
   React.useEffect(() => {
     if (!year.scenarios.some((scenario) => scenario.id === selectedId)) setSelectedId(year.scenarios[0]?.id ?? '');
   }, [selectedId, year.scenarios]);
+
+  React.useEffect(() => {
+    if (createRequestKey > 0) setCreateOpen(true);
+  }, [createRequestKey]);
 
   const addScenario = () => {
     if (!scenarioName.trim()) return;
@@ -43,7 +58,10 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
     };
     onChange([...year.scenarios, scenario]);
     setSelectedId(scenario.id);
+    onScenarioCreated?.(scenario.id);
     setScenarioName('');
+    setRole('custom');
+    setCreateOpen(false);
   };
 
   const updateSelected = (next: ForecastScenario) => onChange(year.scenarios.map((scenario) => scenario.id === next.id ? next : scenario));
@@ -81,22 +99,20 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
 
   return (
     <div className="animate-fade-in space-y-4">
-      <div>
-        <h1 className="text-[18px] font-semibold tracking-tight">Scenarios</h1>
-        <p className="mt-1 text-[12px] text-muted-foreground">Save alternative hires and departures without changing the main operating plan.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-[18px] font-semibold tracking-tight">Scenarios</h1>
+          <p className="mt-1 text-[12px] text-muted-foreground">Save alternative hires and departures without changing the main operating plan.</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" />Add scenario</Button>
       </div>
       <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="rounded-lg border border-border bg-card">
           <div className="border-b border-border p-4"><div className="flex items-center gap-2"><GitBranch className="h-4 w-4 text-muted-foreground" /><h2 className="text-[13px] font-semibold">Saved scenarios</h2></div></div>
           <div className="divide-y divide-border">
             {year.scenarios.map((scenario) => (
-              <button key={scenario.id} type="button" onClick={() => setSelectedId(scenario.id)} className={`w-full px-4 py-3 text-left transition-colors ${scenario.id === selectedId ? 'bg-accent text-foreground' : 'hover:bg-surface-900/60'}`}><div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">{scenario.name}</span><Badge variant="outline" className="capitalize">{scenario.role.replace('-', ' ')}</Badge></div><div className="mt-1 text-[11px] text-muted-foreground">{scenario.plannedHires.length} hires · {scenario.departureOverrides.length} departures</div></button>
+              <button key={scenario.id} type="button" onClick={() => setSelectedId(scenario.id)} className={`w-full px-4 py-3 text-left transition-colors ${scenario.id === selectedId ? 'bg-accent text-foreground' : 'hover:bg-surface-900/60'}`}><div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">{scenario.name}</span><Badge variant="outline">{scenarioRoleLabels[scenario.role]}</Badge></div><div className="mt-1 text-[11px] text-muted-foreground">{scenario.plannedHires.length} hires · {scenario.departureOverrides.length} departures</div></button>
             ))}
-          </div>
-          <div className="space-y-3 border-t border-border p-4">
-            <Field label="New scenario name"><Input placeholder="Later Spring hiring" value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></Field>
-            <Field label="Role"><Select value={role} onChange={(event) => setRole(event.target.value as ForecastScenario['role'])}><option value="custom">Custom</option><option value="plausible-low">Plausible low</option><option value="expected">Expected</option><option value="prudent-high">Prudent high</option></Select></Field>
-            <Button className="w-full" variant="outline" onClick={addScenario}><Plus className="h-4 w-4" />Create scenario</Button>
           </div>
         </aside>
         {selected ? (
@@ -135,6 +151,30 @@ export function Scenarios({ year, onChange }: ScenariosProps) {
           </div>
         ) : <div className="flex min-h-96 items-center justify-center rounded-lg border border-dashed border-border text-[12px] text-muted-foreground">Create a scenario to begin.</div>}
       </div>
+      <DialogShell
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        title="Add scenario"
+        description="Create a saved alternative to the main staffing plan. You can add projected hires and departures next."
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={addScenario} disabled={!scenarioName.trim()}><Plus className="h-4 w-4" />Add scenario</Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Field label="Scenario name"><Input autoFocus placeholder="Spring hiring later" value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></Field>
+          <Field label="Scenario type" hint="Choose where this plan sits compared with the main forecast.">
+            <Select value={role} onChange={(event) => setRole(event.target.value as ForecastScenario['role'])}>
+              <option value="custom">Custom alternative</option>
+              <option value="plausible-low">Lower spending</option>
+              <option value="expected">Most likely</option>
+              <option value="prudent-high">Higher spending</option>
+            </Select>
+          </Field>
+        </div>
+      </DialogShell>
     </div>
   );
 }

@@ -12,7 +12,7 @@ interface SettingsDialogProps {
   onClose: () => void;
   theme: ThemePreference;
   onThemeChange: (theme: ThemePreference) => void;
-  activeYear: FiscalYear;
+  latestYear: FiscalYear;
   previewMode: boolean;
   onAddFiscalYear: (year: FiscalYear) => void;
   onExport: () => Promise<void>;
@@ -24,7 +24,7 @@ export function SettingsDialog({
   onClose,
   theme,
   onThemeChange,
-  activeYear,
+  latestYear,
   previewMode,
   onAddFiscalYear,
   onExport,
@@ -62,7 +62,7 @@ export function SettingsDialog({
           </section>
           <section className="border-t border-border pt-4">
             <h3 className="text-[12px] font-semibold">Fiscal years</h3>
-            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Create the next year from {activeYear.label}'s period structure and budget. Closures and workers stay empty for deliberate review.</p>
+            <p className="mt-1 text-[11px] leading-5 text-muted-foreground">Create the year after {latestYear.label}, carrying forward its period structure and budget. Closures and workers stay empty for deliberate review.</p>
             <Button className="mt-3 w-full" variant="outline" onClick={() => { onClose(); setConfirmYear(true); }}><Plus className="h-4 w-4" />Create next fiscal year</Button>
           </section>
         </div>
@@ -89,7 +89,7 @@ export function SettingsDialog({
         title="Create the next fiscal year?"
         description="Academic period structure and budget will be copied forward. Workers, scenarios, corrections, and closures will start empty."
         confirmLabel="Create fiscal year"
-        onConfirm={() => onAddFiscalYear(createNextFiscalYearTemplate(activeYear))}
+        onConfirm={() => onAddFiscalYear(createNextFiscalYearTemplate(latestYear))}
       />
     </>
   );

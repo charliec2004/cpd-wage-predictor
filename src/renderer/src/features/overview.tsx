@@ -1,13 +1,14 @@
 import * as React from 'react';
 import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, WalletCards } from 'lucide-react';
 import type { FiscalYear } from '../../../shared/workspace';
+import { ActionSelect } from '../../components/ui/action-select';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
 import type { ForecastResult, WeeklyForecastRow } from '../domain/forecast';
 import { formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
-import { Field, MoneyInput, Select } from '../components/form-controls';
+import { Field, MoneyInput } from '../components/form-controls';
 
 interface OverviewProps {
   year: FiscalYear;
@@ -19,7 +20,15 @@ interface OverviewProps {
   onBudgetChange: (budgetCents: number) => void;
   onOpenWorkers: () => void;
   onOpenSchedule: () => void;
+  onAddScenario: () => void;
 }
+
+const scenarioRoleDescriptions: Record<FiscalYear['scenarios'][number]['role'], string> = {
+  custom: 'Custom alternative',
+  'plausible-low': 'Lower-spending forecast',
+  expected: 'Most likely forecast',
+  'prudent-high': 'Higher-spending forecast',
+};
 
 function stateBadge(row: WeeklyForecastRow) {
   if (row.state === 'assumed-worked') return <Badge variant="outline">Worked</Badge>;
@@ -194,7 +203,7 @@ function SummaryItem({ label, value, icon, green = false }: { label: string; val
   );
 }
 
-export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule }: OverviewProps) {
+export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onAddScenario }: OverviewProps) {
   const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
   React.useEffect(() => setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100)), [year.id, year.budgetCents]);
   const commitBudget = (value = budgetDraft) => {
@@ -223,10 +232,18 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <Field label="Scenario" className="w-40">
-            <Select value={scenarioId ?? ''} onChange={(event) => onScenarioChange(event.target.value || null)}>
-              <option value="">Main plan</option>
-              {year.scenarios.map((scenario) => <option key={scenario.id} value={scenario.id}>{scenario.name}</option>)}
-            </Select>
+            <ActionSelect
+              ariaLabel="Scenario"
+              value={scenarioId ?? ''}
+              options={[
+                { value: '', label: 'Main plan', description: 'Current staffing plan' },
+                ...year.scenarios.map((scenario) => ({ value: scenario.id, label: scenario.name, description: scenarioRoleDescriptions[scenario.role] })),
+              ]}
+              onValueChange={(value) => onScenarioChange(value || null)}
+              actionLabel="Add scenario"
+              onAction={onAddScenario}
+              menuClassName="w-60"
+            />
           </Field>
           <Field label="As of" className="w-40">
             <DatePicker required min={year.startDate} max={year.endDate} value={asOfDate} onChange={onAsOfDateChange} aria-label="As of" />

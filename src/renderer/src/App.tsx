@@ -7,10 +7,12 @@ import { TopTabNavigation, type DesktopTab } from '../components/layout/top-tab-
 import { WorkspaceShell } from '../components/layout/workspace-shell';
 import { useDesktopShortcuts } from '../hooks/use-desktop-shortcuts';
 import { Button } from '../components/ui/button';
+import { ActionSelect } from '../components/ui/action-select';
+import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { NoticePanel } from '../components/ui/notice-panel';
-import { Select } from './components/form-controls';
 import { calculateForecast } from './domain/forecast';
 import { todayInLosAngeles } from './domain/dates';
+import { createNextFiscalYearTemplate } from './domain/seed';
 import { Adjustments } from './features/adjustments';
 import { Overview } from './features/overview';
 import { Scenarios } from './features/scenarios';
@@ -39,6 +41,8 @@ export default function App() {
   const { preference, setPreference } = useTheme();
   const [activeTab, setActiveTab] = React.useState<TabId>('overview');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
+  const [addFiscalYearOpen, setAddFiscalYearOpen] = React.useState(false);
+  const [scenarioCreateRequest, setScenarioCreateRequest] = React.useState(0);
   const [asOfDate, setAsOfDate] = React.useState(todayInLosAngeles());
   const [scenarioId, setScenarioId] = React.useState<string | null>(null);
   const platform = window.cpdWagePredictor?.platform ?? ('darwin' as DesktopPlatform);
@@ -56,12 +60,24 @@ export default function App() {
   const workspace = workspaceState.workspace;
   const year = workspace.fiscalYears.find((candidate) => candidate.id === workspace.activeFiscalYearId) ?? workspace.fiscalYears[0];
   if (!year) return <div className="p-8 text-[13px]">The workspace has no fiscal years.</div>;
+  const latestYear = [...workspace.fiscalYears].sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? year;
+  const nextStartYear = Number(latestYear.startDate.slice(0, 4)) + 1;
+  const nextFiscalYearLabel = `FY ${nextStartYear}–${String(nextStartYear + 1).slice(-2)}`;
   const forecast = calculateForecast(year, asOfDate, scenarioId);
   const updateYear = (updater: (current: FiscalYear) => FiscalYear) => {
     workspaceState.updateWorkspace((current) => {
       const active = current.fiscalYears.find((candidate) => candidate.id === current.activeFiscalYearId);
       return active ? updateFiscalYear(current, updater(active)) : current;
     });
+  };
+  const addFiscalYear = (newYear: FiscalYear) => {
+    workspaceState.updateWorkspace((current) => ({
+      ...current,
+      activeFiscalYearId: newYear.id,
+      fiscalYears: [...current.fiscalYears, newYear],
+    }));
+    setSettingsOpen(false);
+    setScenarioId(null);
   };
 
   const activeContent = {
@@ -76,12 +92,23 @@ export default function App() {
         onBudgetChange={(budgetCents) => updateYear((current) => ({ ...current, budgetCents }))}
         onOpenWorkers={() => setActiveTab('workers')}
         onOpenSchedule={() => setActiveTab('schedule')}
+        onAddScenario={() => {
+          setActiveTab('scenarios');
+          setScenarioCreateRequest((request) => request + 1);
+        }}
       />
     ),
     workers: <Workers year={year} onChange={(workers) => updateYear((current) => ({ ...current, workers }))} />,
     schedule: <Schedule year={year} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} />,
     adjustments: <Adjustments year={year} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
-    scenarios: <Scenarios year={year} onChange={(scenarios) => updateYear((current) => ({ ...current, scenarios }))} />,
+    scenarios: (
+      <Scenarios
+        year={year}
+        createRequestKey={scenarioCreateRequest}
+        onScenarioCreated={setScenarioId}
+        onChange={(scenarios) => updateYear((current) => ({ ...current, scenarios }))}
+      />
+    ),
   }[activeTab];
 
   return (
@@ -96,17 +123,23 @@ export default function App() {
             subtitle="Student wage planning"
             utilities={
               <>
-                <Select
-                  aria-label="Fiscal year"
+                <ActionSelect
+                  ariaLabel="Fiscal year"
                   className="h-7 min-w-32"
+                  menuClassName="w-60"
                   value={year.id}
-                  onChange={(event) => {
+                  options={workspace.fiscalYears.map((candidate) => ({
+                    value: candidate.id,
+                    label: candidate.label,
+                    description: candidate.status === 'active' ? 'Active year' : candidate.status === 'closed' ? 'Past year' : 'Planning',
+                  }))}
+                  onValueChange={(value) => {
                     setScenarioId(null);
-                    workspaceState.updateWorkspace((current) => ({ ...current, activeFiscalYearId: event.target.value }));
+                    workspaceState.updateWorkspace((current) => ({ ...current, activeFiscalYearId: value }));
                   }}
-                >
-                  {workspace.fiscalYears.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.label}</option>)}
-                </Select>
+                  actionLabel="Add fiscal year"
+                  onAction={() => setAddFiscalYearOpen(true)}
+                />
                 <div className="hidden items-center gap-1.5 text-[11px] text-muted-foreground sm:flex">
                   <Save className="h-3.5 w-3.5" />{workspaceState.saving ? 'Saving…' : 'Saved locally'}
                 </div>
@@ -136,15 +169,19 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         theme={preference}
         onThemeChange={(theme) => void setPreference(theme)}
-        activeYear={year}
+        latestYear={latestYear}
         previewMode={workspaceState.previewMode}
         onExport={workspaceState.exportWorkspace}
         onImport={workspaceState.importWorkspace}
-        onAddFiscalYear={(newYear) => {
-          workspaceState.updateWorkspace((current) => ({ ...current, activeFiscalYearId: newYear.id, fiscalYears: [...current.fiscalYears, newYear] }));
-          setSettingsOpen(false);
-          setScenarioId(null);
-        }}
+        onAddFiscalYear={addFiscalYear}
+      />
+      <ConfirmDialog
+        open={addFiscalYearOpen}
+        onOpenChange={setAddFiscalYearOpen}
+        title={`Add ${nextFiscalYearLabel}?`}
+        description={`Period dates and budget will carry forward from ${latestYear.label}. Workers, scenarios, adjustments, and closures will start fresh.`}
+        confirmLabel="Add fiscal year"
+        onConfirm={() => addFiscalYear(createNextFiscalYearTemplate(latestYear))}
       />
     </>
   );
