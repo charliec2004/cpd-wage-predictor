@@ -1,0 +1,249 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 99%;
+    --foreground: 240 10% 4%;
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 4%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 4%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 240 8% 6%;
+    --secondary: 240 5% 96%;
+    --secondary-foreground: 240 6% 10%;
+    --muted: 240 5% 96%;
+    --muted-foreground: 240 4% 42%;
+    --accent: 240 5% 95%;
+    --accent-foreground: 240 8% 8%;
+    --accent-50: 0 0% 99%;
+    --accent-100: 240 5% 96%;
+    --accent-200: 240 5% 90%;
+    --accent-300: 240 5% 84%;
+    --accent-400: 240 5% 66%;
+    --accent-500: 240 4% 44%;
+    --accent-600: 240 5% 34%;
+    --accent-700: 240 5% 24%;
+    --accent-800: 240 5% 16%;
+    --accent-900: 240 6% 10%;
+    --border: 240 6% 88%;
+    --input: 240 6% 88%;
+    --ring: 0 0% 78%;
+    --destructive: 0 67% 46%;
+    --destructive-foreground: 0 0% 98%;
+    --danger-300: 0 76% 68%;
+    --danger-400: 0 71% 59%;
+    --danger-500: 0 67% 51%;
+    --danger-600: 0 61% 44%;
+    --danger-700: 0 50% 33%;
+    --warning-300: 35 85% 40%;
+    --warning-400: 36 80% 45%;
+    --warning-500: 37 65% 50%;
+    --warning-600: 36 56% 42%;
+    --warning-700: 33 52% 30%;
+    --warning-banner: 40 81% 47%;
+    --warning-banner-foreground: 0 0% 100%;
+    --warning-banner-link: 0 0% 100%;
+    --highlight: 141 38% 78%;
+    --highlight-foreground: 141 45% 16%;
+    --surface-100: 240 10% 9%;
+    --surface-200: 240 9% 16%;
+    --surface-300: 240 7% 28%;
+    --surface-400: 240 6% 38%;
+    --surface-500: 240 5% 50%;
+    --surface-600: 240 6% 72%;
+    --surface-700: 240 6% 84%;
+    --surface-800: 240 6% 93%;
+    --surface-900: 240 5% 97%;
+    --surface-950: 0 0% 100%;
+    --action-primary: 141 41% 31%;
+    --action-primary-hover: 141 39% 36%;
+    --action-primary-border: 141 41% 46%;
+    --action-primary-foreground: 0 0% 100%;
+    --success-accent: 145 58% 30%;
+    --success-accent-hover: 145 56% 24%;
+    --success-accent-bg: 145 55% 92%;
+    --danger-accent: 0 68% 42%;
+    --danger-accent-hover: 0 65% 36%;
+    --danger-accent-bg: 0 72% 94%;
+    --success-notice-foreground: 141 46% 19%;
+    --success-notice-muted: 141 28% 27%;
+    --status-shimmer-highlight: 205 88% 68%;
+    --radius: 0.5rem;
+    --focus-ring: 0 0 0 1px hsl(var(--ring));
+  }
+
+  .dark {
+    --background: 0 0% 4%;
+    --foreground: 0 0% 96%;
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 96%;
+    --popover: 0 0% 8%;
+    --popover-foreground: 0 0% 96%;
+    --primary: 0 0% 98%;
+    --primary-foreground: 0 0% 6%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 94%;
+    --muted: 0 0% 12%;
+    --muted-foreground: 0 0% 62%;
+    --accent: 0 0% 13%;
+    --accent-foreground: 0 0% 96%;
+    --accent-50: 0 0% 98%;
+    --accent-100: 0 0% 96%;
+    --accent-200: 0 0% 89%;
+    --accent-300: 0 0% 76%;
+    --accent-400: 0 0% 63%;
+    --accent-500: 0 0% 44%;
+    --accent-600: 0 0% 33%;
+    --accent-700: 0 0% 25%;
+    --accent-800: 0 0% 16%;
+    --accent-900: 0 0% 10%;
+    --border: 0 0% 18%;
+    --input: 0 0% 18%;
+    --ring: 0 0% 82%;
+    --destructive: 0 66% 48%;
+    --destructive-foreground: 0 0% 98%;
+    --danger-300: 0 79% 82%;
+    --danger-400: 0 73% 70%;
+    --danger-500: 0 66% 58%;
+    --danger-600: 0 59% 48%;
+    --danger-700: 0 48% 34%;
+    --warning-300: 39 83% 76%;
+    --warning-400: 38 76% 66%;
+    --warning-500: 37 54% 53%;
+    --warning-600: 34 50% 40%;
+    --warning-700: 32 50% 27%;
+    --warning-banner: 40 81% 47%;
+    --warning-banner-foreground: 0 0% 100%;
+    --warning-banner-link: 0 0% 100%;
+    --highlight: 141 35% 28%;
+    --highlight-foreground: 0 0% 100%;
+    --surface-100: 0 0% 96%;
+    --surface-200: 0 0% 88%;
+    --surface-300: 0 0% 72%;
+    --surface-400: 0 0% 62%;
+    --surface-500: 0 0% 46%;
+    --surface-600: 0 0% 32%;
+    --surface-700: 0 0% 18%;
+    --surface-800: 0 0% 10%;
+    --surface-900: 0 0% 7%;
+    --surface-950: 0 0% 3%;
+    --action-primary: 141 41% 31%;
+    --action-primary-hover: 141 39% 36%;
+    --action-primary-border: 141 41% 46%;
+    --action-primary-foreground: 0 0% 100%;
+    --success-accent: 145 72% 72%;
+    --success-accent-hover: 145 78% 80%;
+    --success-accent-bg: 145 48% 22%;
+    --danger-accent: 0 82% 74%;
+    --danger-accent-hover: 0 90% 82%;
+    --danger-accent-bg: 0 44% 22%;
+    --success-notice-foreground: 141 22% 92%;
+    --success-notice-muted: 141 18% 78%;
+    --status-shimmer-highlight: 201 100% 80%;
+  }
+
+  html {
+    color-scheme: light;
+    scroll-behavior: smooth;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  html.theme-transition,
+  html.theme-transition *,
+  html.theme-transition *::before,
+  html.theme-transition *::after {
+    transition-duration: 180ms;
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: ease;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html.theme-transition,
+    html.theme-transition *,
+    html.theme-transition *::before,
+    html.theme-transition *::after {
+      transition-duration: 0ms;
+    }
+  }
+
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: 'liga' 1, 'calt' 1;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  .titlebar-drag {
+    -webkit-app-region: drag;
+    app-region: drag;
+  }
+
+  .no-drag,
+  .titlebar-drag button,
+  .titlebar-drag a,
+  .titlebar-drag input,
+  .titlebar-drag select {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  @supports (padding-top: env(titlebar-area-height, 0px)) {
+    .titlebar-overlay-padding {
+      padding-right: env(titlebar-area-width, 0px);
+    }
+  }
+
+  .skip-link {
+    @apply absolute -top-10 left-4 z-50 rounded-b-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-all;
+    @apply focus:top-0;
+  }
+
+  ::-webkit-scrollbar {
+    @apply h-2 w-2;
+  }
+
+  ::-webkit-scrollbar-track {
+    @apply bg-surface-900;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-surface-600;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-surface-500;
+  }
+
+  *:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+    @apply ring-1 ring-ring ring-offset-0;
+  }
+
+  ::selection {
+    background-color: hsl(var(--highlight));
+    color: hsl(var(--highlight-foreground));
+  }
+
+  input[type='number'] {
+    -moz-appearance: textfield;
+  }
+
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
