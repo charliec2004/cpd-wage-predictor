@@ -45,6 +45,7 @@ export function createWindowShellOptions({
       };
 
   return {
+    show: false,
     width: 1400,
     height: 900,
     minWidth: 1000,

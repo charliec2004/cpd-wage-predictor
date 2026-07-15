@@ -30,16 +30,47 @@ export function DialogShell({
 }: DialogShellProps) {
   const titleId = React.useId();
   const descriptionId = React.useId();
+  const dialogRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     if (!open) return;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const applicationRoot = document.getElementById('root');
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    const handleKeyDown = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    if (applicationRoot) applicationRoot.inert = true;
+    const focusableSelector = 'button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = Array.from(dialogRef.current.querySelectorAll<HTMLElement>(focusableSelector));
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    };
     window.addEventListener('keydown', handleKeyDown);
+    const frame = window.requestAnimationFrame(() => {
+      if (dialogRef.current && !dialogRef.current.contains(document.activeElement)) {
+        dialogRef.current.querySelector<HTMLElement>(focusableSelector)?.focus();
+      }
+    });
     return () => {
+      window.cancelAnimationFrame(frame);
       document.body.style.overflow = previousOverflow;
+      if (applicationRoot) applicationRoot.inert = false;
       window.removeEventListener('keydown', handleKeyDown);
+      previouslyFocused?.focus();
     };
   }, [onClose, open]);
 
@@ -54,6 +85,7 @@ export function DialogShell({
         aria-label="Close dialog"
       />
       <div
+        ref={dialogRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}

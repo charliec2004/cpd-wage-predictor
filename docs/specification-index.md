@@ -8,6 +8,8 @@
 - [FY 2026–27 Chapman research](research/chapman-calendar-fy-2026-2027.md) — official-source calendar seed and unresolved dates
 - [Decision questionnaire](decision-questionnaire.md) — implementation questions for CPD
 - [Specification audit](spec-audit.md) — independent gap review and resolutions
+- [Confirmed decisions](confirmed-decisions.md) — answers from the focused CPD discovery round
+- [First UI implementation plan](ui-implementation-plan.md) — visual and interaction direction for the vertical slice
 - [Product design system](../design.md) — visual language and interface behavior
 - [Electron shell contract](electron-shell-contract.md) — native macOS/Windows/Linux layout behavior
 

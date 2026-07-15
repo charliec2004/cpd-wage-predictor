@@ -7,3 +7,10 @@ coverage/
 .env
 .env.*
 !.env.example
+node_modules/
+out/
+release/
+coverage/
+*.log
+.DS_Store
+*.tsbuildinfo

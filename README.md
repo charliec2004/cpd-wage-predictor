@@ -1,19 +1,19 @@
 # CPD Wage Predictor
 
-An offline desktop planning tool for Chapman University's Career and Professional Development team. It will combine recurring student schedules, week-specific staffing plans, work-study balances, actual payroll, and future hiring scenarios into a rolling fiscal-year wage forecast.
+An offline desktop planning tool for Chapman University's Career and Professional Development team. It combines recurring student schedules, week-specific staffing plans, work-study balances, hour corrections, and future hiring scenarios into a rolling fiscal-year wage forecast.
 
 ## Product direction
 
 - Offline-first Electron application
-- One portable project file per fiscal year
+- One local workspace containing multiple fiscal years
 - No server, hosted account, or internet connection required
 - Current-date awareness from the computer's system clock
 - Recurring fall and spring schedules
 - Week-specific summer and Interterm schedules
-- Actuals progressively replace forecasts
+- Scheduled hours are assumed worked until a day or week is corrected
 - Work-study and non-work-study cost tracking
-- Scenario comparison and narrowing forecast ranges
-- Excel/CSV import and export
+- Saved staffing scenarios
+- Readable JSON backup export and import
 - Designed for nontechnical CPD staff
 
 ## Design family
@@ -26,21 +26,37 @@ See [docs/specification-index.md](docs/specification-index.md) for the functiona
 
 ## Current status
 
-The repository now contains the shared design foundation, reusable React UI primitives, and an audited multi-year product/forecasting specification. The next implementation gate is resolving the P0 CPD policy and data-access questions.
+The first working vertical slice is implemented. It includes the secure Electron shell, encrypted local persistence, automatic local backups, portable export/import, the forecast engine, multi-year settings, workers, schedules, closures, hour corrections, scenarios, and a responsive light/dark interface. The core model is covered by automated tests.
+
+## Run locally
+
+```bash
+npm install
+npm run dev
+```
+
+Quality checks:
+
+```bash
+npm run typecheck
+npm test
+npm run build
+```
 
 ## Repository layout
 
 ```text
-src/renderer/components/ui/   Shared interface primitives
-src/renderer/components/layout/ Shared desktop-shell primitives
-src/renderer/lib/             Renderer utilities
-src/renderer/styles/          Semantic theme tokens
-src/main/window-shell.ts      Native window configuration foundation
-src/shared/                   Process-safe shared platform types
+src/main/                     Secure Electron shell and encrypted storage
+src/preload/                  Narrow renderer-to-main bridge
+src/renderer/components/      Shared interface and desktop-shell primitives
+src/renderer/src/domain/      Calendar seed and forecasting engine
+src/renderer/src/features/    Overview and editing workflows
+src/renderer/styles/          Semantic light/dark theme tokens
+src/shared/                   Validated workspace schema and shared types
 docs/electron-shell-contract.md Platform and window-layout contract
 design.md                     Visual language and implementation rules
 ```
 
 ## Data ownership
 
-Operational data will live in portable fiscal-year project files controlled by CPD. Source code, release installers, documentation, and backups should be copied to Chapman-controlled storage before project handoff.
+Operational data is encrypted at rest in the current computer user's application-data folder. The app keeps rolling local backups, and staff can create a readable portable workspace export for Chapman-controlled storage or transfer to another CPD computer. Source code, release installers, documentation, and exports should all be copied to Chapman-controlled storage before project handoff.

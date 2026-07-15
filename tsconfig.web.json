@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "composite": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/renderer/**/*.d.ts", "src/shared/**/*.ts"]
+}
