@@ -188,6 +188,7 @@
   .titlebar-drag {
     -webkit-app-region: drag;
     app-region: drag;
+    user-select: none;
   }
 
   .no-drag,
@@ -199,10 +200,13 @@
     app-region: no-drag;
   }
 
-  @supports (padding-top: env(titlebar-area-height, 0px)) {
-    .titlebar-overlay-padding {
-      padding-right: env(titlebar-area-width, 0px);
-    }
+  .titlebar-safe-area {
+    box-sizing: border-box;
+    height: env(titlebar-area-height, 48px);
+    margin-left: env(titlebar-area-x, 0px);
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+    width: env(titlebar-area-width, calc(100% - 9rem));
   }
 
   .skip-link {
@@ -245,5 +249,17 @@
   input[type='number']::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
+  }
+
+  .scrollbar-gutter-stable {
+    scrollbar-gutter: stable;
+  }
+
+  @media (forced-colors: active) {
+    *:focus-visible {
+      box-shadow: none;
+      outline: 2px solid CanvasText;
+      outline-offset: 2px;
+    }
   }
 }

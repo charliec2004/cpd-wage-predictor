@@ -90,6 +90,8 @@ Support `system`, `dark`, and `light` preferences. Theme selection must persist 
 
 Electron window background, title-bar overlay, and symbol colors must follow the resolved theme. Both themes are first-class; do not ship a theme selector until every core surface passes contrast and state checks.
 
+Theme ownership crosses a process boundary. The Electron main process owns native chrome and the renderer owns CSS tokens, but both must resolve the same saved preference. The initial native background and title-bar colors are applied before renderer paint; the renderer then applies the matching `light` or `dark` class. Changing theme updates both sides in one operation.
+
 ## 7. Shape, spacing, and density
 
 - Base radius: `0.5rem`
@@ -106,21 +108,88 @@ Use borders and stepped surfaces more than shadows. Avoid pills unless the conte
 
 ## 8. Layout language
 
-The shell is full-screen and shallow:
+The shared family shell follows Semester Scheduler's actual desktop structure: one compact native-integrated title bar, one top-level tab strip, and one independently scrolling workspace. Wage Predictor should not introduce a permanent left sidebar by default; its fiscal timeline and weekly cost tables benefit from horizontal room, and top tabs preserve the strongest family resemblance.
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ compact title bar                            utility actions │
-├───────────────┬─────────────────────────────────────────────┤
-│ navigation    │ contextual toolbar                          │
-│               ├─────────────────────────────────────────────┤
-│               │                                             │
-│               │ active planning workspace                   │
-│               │                                             │
-└───────────────┴─────────────────────────────────────────────┘
+│ native-safe title bar      project identity    utility tools │ 48px
+├─────────────────────────────────────────────────────────────┤
+│ Overview  Workers  Schedule  Actuals  Scenarios             │ 40px
+├─────────────────────────────────────────────────────────────┤
+│ contextual toolbar / forecast seam controls                 │
+├───────────────────────────────────────────┬─────────────────┤
+│                                           │ optional local  │
+│ active planning workspace                 │ inspector       │
+│                                           │                 │
+└───────────────────────────────────────────┴─────────────────┘
 ```
 
-The shell recedes behind the planning surface. Tables, timelines, schedule grids, and inspection panels—not oversized KPI cards—are the primary spatial materials.
+The title bar and global tabs remain fixed. The main workspace is the only normal vertical scroll container, with a stable scrollbar gutter to prevent horizontal movement when content length changes. Tables, timelines, schedule grids, and inspection panels—not oversized KPI cards—are the primary spatial materials.
+
+### 8.1 Why controls are placed there
+
+- The left side of the title bar establishes application and project identity. It is not a primary navigation zone.
+- The right side contains global utilities in ascending commitment: theme, help, keyboard shortcuts, then settings. These tools affect the application rather than the current fiscal object.
+- Top tabs represent durable product areas and preserve wide workspace width. They are not a wizard and must not imply that work must happen in sequence.
+- Actions that change the current worker, week, or scenario belong in the contextual toolbar or local inspector—not in the global title bar.
+- The forecast seam belongs in the planning workspace because it is data state, not application chrome.
+- An inspector may appear on the right only when a selected week, worker, or scenario needs detailed editing. It is local and dismissible rather than permanent navigation.
+
+### 8.2 Title-bar geometry
+
+- Native and renderer title-bar height: 48px
+- macOS traffic-light position: `{ x: 16, y: 18 }`
+- macOS renderer safe area: 96px on the left, 20px on the right
+- Windows/Linux: use the Window Controls Overlay CSS environment safe area; fixed right padding is fallback only
+- Brand mark: 28px container with 14px icon
+- Product title: 14px semibold
+- Optional subtitle: 12px muted, hidden when width is constrained
+- Utility controls: 28px or 32px; keep at least 6px between controls
+
+The header itself is draggable. Interactive descendants are explicitly `no-drag`; otherwise Electron consumes pointer events. Title-bar text is non-selectable so dragging does not accidentally select the product name.
+
+### 8.3 macOS behavior
+
+Use `titleBarStyle: 'hiddenInset'` so the content and title bar read as one surface while keeping native traffic lights. Keep all interactive content clear of the upper-left traffic-light region. Do not recreate the traffic lights in React.
+
+Use macOS conventions throughout:
+
+- `Command` is the primary shortcut modifier
+- application commands live in the macOS application menu
+- closing the last window does not quit the application
+- reopening from the Dock recreates the main window
+- destructive or unsaved-document behavior must integrate with the native close lifecycle
+
+### 8.4 Windows behavior
+
+Use `titleBarStyle: 'hidden'` with the native `titleBarOverlay`. Keep minimize, maximize, and close as native controls. The scheduler previously required a specific Windows fix because those controls covered the Settings action; Wage Predictor treats the native overlay as a reserved safe area from the beginning.
+
+Use Windows conventions throughout:
+
+- `Ctrl` is the primary shortcut modifier
+- closing the last window quits the application
+- updater access belongs under `Help` rather than a macOS-style application menu
+- title-bar symbol color must maintain contrast in both themes
+- Windows high-contrast/forced-color mode must preserve outlines, text, and control boundaries
+
+### 8.5 Linux behavior
+
+Linux follows the Windows overlay structure where supported, but symbol contrast may be system-calculated. Do not assume every window manager gives identical overlay geometry. The CSS safe-area variables and conservative fallbacks remain mandatory.
+
+### 8.6 Workspace width and density
+
+Use two workspace widths rather than one universal container:
+
+- `constrained`: maximum 1280px for onboarding, settings, forms, and explanatory content
+- `fluid`: full available width for the fiscal timeline, week grid, payroll tables, and scenario comparison
+
+Both use 20px horizontal padding and 24px vertical padding at standard desktop sizes. The minimum supported window target inherited from Scheduler is 1000×700; compact QA must occur at that size. Never solve overflow by shrinking data below legibility—use sticky columns, horizontal scrolling inside the data surface, or a local inspector.
+
+### 8.7 Navigation behavior
+
+The tab list uses proper `tablist`, `tab`, `aria-selected`, and `aria-controls` semantics. Arrow keys move between adjacent tabs; `Home` and `End` jump to the first and last tab. `Command/Ctrl + number` may provide direct access, and `Command/Ctrl + ,` opens Settings. Shortcuts do nothing while the user is typing in an input, textarea, select, or editable region.
+
+The complete implementation contract is in [docs/electron-shell-contract.md](docs/electron-shell-contract.md). Reusable shell code lives in `src/renderer/components/layout`.
 
 ## 9. Wage Predictor information states
 
@@ -219,6 +288,14 @@ Initial primitive set:
 - `ConfirmDialog`
 - `NoticePanel`
 - `HourInput`
+
+Shared layout primitives:
+
+- `DesktopTitleBar`
+- `TopTabNavigation`
+- `WorkspaceShell`
+- `useDesktopShortcuts`
+- `createWindowShellOptions`
 
 ## 15. Family resemblance versus product distinction
 

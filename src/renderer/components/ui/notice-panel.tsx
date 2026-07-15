@@ -21,7 +21,7 @@ const icons = {
   info: Info,
 };
 
-interface NoticePanelProps extends React.HTMLAttributes<HTMLDivElement> {
+interface NoticePanelProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   variant?: NoticeVariant;
   title?: React.ReactNode;
   description?: React.ReactNode;

@@ -30,8 +30,12 @@ The repository currently contains the shared design foundation and reusable Reac
 
 ```text
 src/renderer/components/ui/   Shared interface primitives
+src/renderer/components/layout/ Shared desktop-shell primitives
 src/renderer/lib/             Renderer utilities
 src/renderer/styles/          Semantic theme tokens
+src/main/window-shell.ts      Native window configuration foundation
+src/shared/                   Process-safe shared platform types
+docs/electron-shell-contract.md Platform and window-layout contract
 design.md                     Visual language and implementation rules
 ```
 
