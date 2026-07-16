@@ -9,6 +9,7 @@ import type { ForecastResult, WeeklyForecastRow } from '../domain/forecast';
 import { formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 import { Field, MoneyInput } from '../components/form-controls';
+import { budgetHealth, type BudgetHealth } from '../domain/budget-health';
 
 interface OverviewProps {
   year: FiscalYear;
@@ -131,7 +132,7 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
           <div className="mt-3 text-[20px] font-semibold tracking-tight">{currentPeriod ? `${currentPeriod.name}${currentIsFinals ? ' · Finals' : ''}` : 'Outside this fiscal year'}</div>
           {currentPeriod && <div className="mt-1 text-[12px] text-muted-foreground">{formatShortDate(currentPeriod.startDate)}–{formatShortDate(currentPeriod.endDate)}</div>}
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
-            <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Work-study</div><div className={`mt-1 text-[12px] font-semibold ${currentUsesWorkStudy ? 'text-[hsl(var(--success-accent))]' : ''}`}>{currentUsesWorkStudy ? 'Available now' : 'Not available · Summer'}</div></div>
+            <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Work-study</div><div className={`mt-1 text-[12px] font-semibold ${currentUsesWorkStudy ? '' : 'text-muted-foreground'}`}>{currentUsesWorkStudy ? 'Available now' : 'Not available · Summer'}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">FY remaining</div><div className="mt-1 font-mono text-[12px] font-semibold">{remainingDays} days</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Next period</div><div className="mt-1 text-[12px] font-semibold">{nextPeriod ? `${nextPeriod.name} · ${formatShortDate(nextPeriod.startDate)}` : 'Fiscal-year close'}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Next closure</div><div className="mt-1 text-[12px] font-semibold">{nextClosure ? `${formatShortDate(nextClosure.date)} · ${nextClosure.name}` : 'None remaining'}</div></div>
@@ -161,8 +162,8 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
                     {period.finalsStartDate && period.finalsEndDate && <div className="mt-0.5 text-[9px] text-muted-foreground">Finals · {formatShortDate(period.finalsStartDate)}–{formatShortDate(period.finalsEndDate)}</div>}
                   </div>
                   <div className="text-muted-foreground">{period.scheduleMode === 'recurring' ? 'Repeats each week' : 'Enter week by week'}</div>
-                  <div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}>
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${workStudyAvailable ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />
+                  <div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? '' : 'text-muted-foreground'}`}>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${workStudyAvailable ? 'bg-surface-400' : 'border border-surface-500'}`} />
                     {workStudyAvailable ? 'Work-study available' : 'Not available · Summer'}
                   </div>
                 </div>
@@ -199,14 +200,21 @@ function ForecastRunway({ year, asOfDate }: { year: FiscalYear; asOfDate: string
   );
 }
 
-function SummaryItem({ label, value, icon, green = false }: { label: string; value: string; icon: React.ReactNode; green?: boolean }) {
+function SummaryItem({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="min-w-0">
       <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">{icon}{label}</div>
-      <div className={`mt-1 font-mono text-[15px] font-semibold tabular-nums ${green ? 'text-[hsl(var(--success-accent))]' : ''}`}>{value}</div>
+      <div className="mt-1 font-mono text-[15px] font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
+
+const budgetHealthPresentation: Record<BudgetHealth, { label: string; text: string; bar: string }> = {
+  healthy: { label: 'Healthy', text: 'text-[hsl(var(--success-accent))]', bar: 'bg-[hsl(var(--action-primary))]' },
+  watch: { label: 'Getting low', text: 'text-warning-700 dark:text-warning-300', bar: 'bg-warning-500' },
+  critical: { label: 'Critical', text: 'text-destructive', bar: 'bg-destructive' },
+  unknown: { label: 'No budget', text: 'text-muted-foreground', bar: 'bg-surface-500' },
+};
 
 export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onAddScenario }: OverviewProps) {
   const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
@@ -221,6 +229,8 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
   const spendRatio = year.budgetCents > 0 ? (forecast.totals.cpdCostCents / year.budgetCents) * 100 : 0;
   const progressWidth = Math.min(100, Math.max(0, spendRatio));
   const overBudget = forecast.totals.remainingBudgetCents < 0;
+  const overallBudgetHealth = budgetHealth(forecast.totals.remainingBudgetCents, year.budgetCents);
+  const overallHealthPresentation = budgetHealthPresentation[overallBudgetHealth];
   const selectedScenario = year.scenarios.find((scenario) => scenario.id === scenarioId);
   let runningBalance = year.budgetCents;
   const rows = forecast.weekly.map((row) => {
@@ -291,19 +301,19 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
                       />
                     </Field>
                     <div className="pb-0.5 text-right">
-                      <div className="text-[11px] text-muted-foreground">Remaining</div>
-                      <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overBudget ? 'text-destructive' : 'text-[hsl(var(--success-accent))]'}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
+                      <div className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground"><span>Remaining</span><span aria-hidden="true">·</span><span className={overallHealthPresentation.text}>{overallHealthPresentation.label}</span></div>
+                      <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
                     </div>
                   </div>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-800">
-                  <div className={`h-full rounded-full ${overBudget ? 'bg-destructive' : 'bg-[hsl(var(--action-primary))]'}`} style={{ width: `${progressWidth}%` }} />
+                  <div className={`h-full rounded-full ${overallHealthPresentation.bar}`} style={{ width: `${progressWidth}%` }} />
                 </div>
                 <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground"><span>{spendRatio.toFixed(1)}% used</span><span>{formatCurrency(year.budgetCents)} budget</span></div>
               </div>
               <div className="grid grid-cols-3 gap-5 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
                 <SummaryItem label="Gross wages" value={formatCurrency(forecast.totals.grossWagesCents)} icon={<CircleDollarSign className="h-3.5 w-3.5" />} />
-                <SummaryItem label="Work-study" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} green />
+                <SummaryItem label="Work-study" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} />
                 <SummaryItem label="Hours" value={forecast.totals.hours.toFixed(1)} icon={<Clock3 className="h-3.5 w-3.5" />} />
               </div>
             </div>
@@ -324,7 +334,7 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
                 </tr></thead>
                 <tbody>{rows.map((row) => (
                   <tr key={row.weekStart} className={row.state === 'mixed' ? 'bg-warning-500/[0.07]' : 'hover:bg-surface-900/55'}>
-                    <td className="border-b border-border px-3 py-2 font-mono text-[11px]">{formatShortDate(row.weekStart)}–{formatShortDate(row.weekEnd)}</td><td className="border-b border-border px-3 py-2">{stateBadge(row)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.hours.toFixed(1)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{formatCurrencyPrecise(row.grossWagesCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums text-[hsl(var(--success-accent))]">{formatCurrencyPrecise(row.workStudyCoveredCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums">{formatCurrencyPrecise(row.cpdCostCents)}</td><td className={`border-b border-border px-3 py-2 text-right font-mono tabular-nums ${row.runningBalance < 0 ? 'text-destructive' : ''}`}>{formatCurrencyPrecise(row.runningBalance)}</td>
+                    <td className="border-b border-border px-3 py-2 font-mono text-[11px]">{formatShortDate(row.weekStart)}–{formatShortDate(row.weekEnd)}</td><td className="border-b border-border px-3 py-2">{stateBadge(row)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.hours.toFixed(1)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{formatCurrencyPrecise(row.grossWagesCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{formatCurrencyPrecise(row.workStudyCoveredCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums">{formatCurrencyPrecise(row.cpdCostCents)}</td><td className={`border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums ${budgetHealthPresentation[budgetHealth(row.runningBalance, year.budgetCents)].text}`}>{formatCurrencyPrecise(row.runningBalance)}</td>
                   </tr>
                 ))}</tbody>
               </table>

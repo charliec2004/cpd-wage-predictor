@@ -123,11 +123,11 @@ function validShiftDrafts(shifts: ShiftDraft[]): boolean {
   return shifts.every((shift) => timeToMinutes(shift.end) > timeToMinutes(shift.start));
 }
 
-function WeekSummary({ label, value, green = false }: { label: string; value: string; green?: boolean }) {
+function WeekSummary({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 border-l border-border pl-4 first:border-l-0 first:pl-0">
       <div className="text-[9px] font-medium uppercase tracking-[0.07em] text-muted-foreground">{label}</div>
-      <div className={`mt-1 truncate font-mono text-[13px] font-semibold ${green ? 'text-[hsl(var(--success-accent))]' : ''}`}>{value}</div>
+      <div className="mt-1 truncate font-mono text-[13px] font-semibold">{value}</div>
     </div>
   );
 }
@@ -340,7 +340,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             <div className="grid min-w-[430px] grid-cols-4 gap-4">
               <WeekSummary label="Hours" value={`${(weekTotals.minutes / 60).toFixed(1)}h`} />
               <WeekSummary label="Gross wages" value={formatCurrency(weekTotals.gross)} />
-              <WeekSummary label="Work-study" value={formatCurrency(weekTotals.workStudy)} green />
+              <WeekSummary label="Work-study" value={formatCurrency(weekTotals.workStudy)} />
               <WeekSummary label="CPD budget" value={formatCurrency(weekTotals.cpd)} />
             </div>
           </div>
@@ -463,7 +463,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                           ) : <span className="text-muted-foreground">—</span>}
                         </td>
                         <td className="border-b border-border px-3 py-2.5"><Select aria-label={`${academicPeriod.name} schedule style`} value={academicPeriod.scheduleMode} onChange={(event) => onPeriodsChange(year.periods.map((candidate) => candidate.id === academicPeriod.id ? { ...candidate, scheduleMode: event.target.value as AcademicPeriod['scheduleMode'] } : candidate))}><option value="recurring">Repeats weekly</option><option value="week-specific">Plan week by week</option></Select></td>
-                        <td className="border-b border-border px-3 py-2.5"><div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}><span className={`h-2 w-2 rounded-full ${workStudyAvailable ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />{workStudyAvailable ? 'Available' : 'Not available · Summer'}</div></td>
+                        <td className="border-b border-border px-3 py-2.5"><div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? '' : 'text-muted-foreground'}`}><span className={`h-2 w-2 rounded-full ${workStudyAvailable ? 'bg-surface-400' : 'border border-surface-500'}`} />{workStudyAvailable ? 'Available' : 'Not available · Summer'}</div></td>
                       </tr>
                     );
                   })}
