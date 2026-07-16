@@ -73,10 +73,16 @@ export function DatePicker({
   const minDate = fromIso(min);
   const maxDate = fromIso(max);
   const today = new Date();
+  const [displayMonth, setDisplayMonth] = React.useState<Date>(() => selected ?? minDate ?? today);
   const todayAllowed = (!minDate || today >= minDate) && (!maxDate || today <= maxDate);
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    if (nextOpen) setDisplayMonth(selected ?? minDate ?? today);
+    setOpen(nextOpen);
+  };
+
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
+    <Popover.Root open={open} onOpenChange={handleOpenChange}>
       <Popover.Trigger asChild>
         <Button
           type="button"
@@ -102,7 +108,8 @@ export function DatePicker({
             mode="single"
             required={required}
             selected={selected}
-            defaultMonth={selected ?? minDate ?? today}
+            month={displayMonth}
+            onMonthChange={setDisplayMonth}
             startMonth={minDate}
             endMonth={maxDate}
             disabled={[...(minDate ? [{ before: minDate }] : []), ...(maxDate ? [{ after: maxDate }] : [])]}
@@ -118,7 +125,7 @@ export function DatePicker({
               month: 'space-y-3',
               month_caption: 'relative flex h-8 items-center justify-center px-9',
               caption_label: 'text-[13px] font-semibold',
-              nav: 'absolute inset-x-3 top-3 flex items-center justify-between',
+              nav: 'absolute inset-x-3 top-3 z-10 flex items-center justify-between',
               button_previous: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-35',
               button_next: 'inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-35',
               month_grid: 'border-collapse',
