@@ -48,6 +48,7 @@ interface MoneyInputProps extends Omit<InputProps, 'value' | 'defaultValue' | 'o
 export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
   ({ className, value, onValueChange, onBlur, onKeyDown, ...props }, forwardedRef) => {
     const [draft, setDraft] = React.useState(value);
+    const cancelBlurCommitRef = React.useRef(false);
     React.useEffect(() => setDraft(value), [value]);
 
     const commit = () => onValueChange(draft);
@@ -62,7 +63,8 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
           value={draft}
           onChange={(event) => setDraft(event.target.value)}
           onBlur={(event) => {
-            commit();
+            if (cancelBlurCommitRef.current) cancelBlurCommitRef.current = false;
+            else commit();
             onBlur?.(event);
           }}
           onKeyDown={(event) => {
@@ -70,6 +72,7 @@ export const MoneyInput = React.forwardRef<HTMLInputElement, MoneyInputProps>(
               commit();
               event.currentTarget.blur();
             } else if (event.key === 'Escape') {
+              cancelBlurCommitRef.current = true;
               setDraft(value);
               event.currentTarget.blur();
             }

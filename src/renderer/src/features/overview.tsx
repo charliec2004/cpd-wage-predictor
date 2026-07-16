@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, GitBranch, WalletCards } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, GitBranch, Pencil, WalletCards } from 'lucide-react';
 import { isWorkStudyEligiblePeriod, type FiscalYear } from '../../../shared/workspace';
 import { ActionSelect } from '../../components/ui/action-select';
 import { Badge } from '../../components/ui/badge';
@@ -260,6 +260,7 @@ const budgetHealthPresentation: Record<BudgetHealth, { text: string; bar: string
 
 export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onOpenForecasts, onAddScenario }: OverviewProps) {
   const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
+  const [budgetEditing, setBudgetEditing] = React.useState(false);
   React.useEffect(() => setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100)), [year.id, year.budgetCents]);
   const commitBudget = (value = budgetDraft) => {
     const parsed = Number(value.replaceAll(',', '').replace('$', '').trim());
@@ -349,17 +350,30 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
                   <div className={`mt-1 font-mono text-[30px] font-semibold tracking-tight tabular-nums ${overBudget ? 'text-destructive' : ''}`}>{formatCurrency(forecast.totals.cpdCostCents)}</div>
                 </div>
                 <div className="min-w-0 md:px-6">
-                  <Field label="Annual budget" className="max-w-44 text-left">
-                    <MoneyInput
-                      aria-label="Student-worker budget"
-                      className="h-9 text-right font-mono tabular-nums"
-                      value={budgetDraft}
-                      onValueChange={(value) => {
-                        setBudgetDraft(value);
-                        commitBudget(value);
-                      }}
-                    />
-                  </Field>
+                  {budgetEditing ? (
+                    <Field label="Annual budget" className="max-w-44 text-left">
+                      <MoneyInput
+                        autoFocus
+                        aria-label="Student-worker budget"
+                        className="h-9 text-right font-mono tabular-nums"
+                        value={budgetDraft}
+                        onFocus={(event) => event.currentTarget.select()}
+                        onBlur={() => setBudgetEditing(false)}
+                        onValueChange={(value) => {
+                          setBudgetDraft(value);
+                          commitBudget(value);
+                        }}
+                      />
+                    </Field>
+                  ) : (
+                    <div>
+                      <div className="text-[11px] font-medium text-muted-foreground">Annual budget</div>
+                      <div className="mt-1 flex items-center gap-1.5">
+                        <div className="font-mono text-[24px] font-semibold tracking-tight tabular-nums">{formatCurrency(year.budgetCents)}</div>
+                        <Button type="button" variant="ghost" size="icon-sm" aria-label="Edit annual budget" onClick={() => setBudgetEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="min-w-0 md:pl-6">
                   <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Remaining' : 'Partial balance'}</div>
