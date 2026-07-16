@@ -25,10 +25,10 @@ import { useWorkspace } from './state/use-workspace';
 type TabId = 'overview' | 'workers' | 'schedule' | 'adjustments' | 'scenarios';
 
 const tabs: DesktopTab[] = [
-  { id: 'overview', label: 'Overview', icon: <ChartNoAxesCombined className="h-3.5 w-3.5" /> },
+  { id: 'overview', label: 'Outlook', icon: <ChartNoAxesCombined className="h-3.5 w-3.5" /> },
   { id: 'workers', label: 'Workers', icon: <UserRound className="h-3.5 w-3.5" /> },
   { id: 'schedule', label: 'Schedule', icon: <CalendarDays className="h-3.5 w-3.5" /> },
-  { id: 'adjustments', label: 'Adjustments', icon: <WandSparkles className="h-3.5 w-3.5" /> },
+  { id: 'adjustments', label: 'Changes', icon: <WandSparkles className="h-3.5 w-3.5" /> },
   { id: 'scenarios', label: 'Scenarios', icon: <GitBranch className="h-3.5 w-3.5" /> },
 ];
 
@@ -43,6 +43,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [addFiscalYearOpen, setAddFiscalYearOpen] = React.useState(false);
   const [scenarioCreateRequest, setScenarioCreateRequest] = React.useState(0);
+  const [changeOpenRequest, setChangeOpenRequest] = React.useState<{ key: number; workerId: string; date: string } | null>(null);
   const [asOfDate, setAsOfDate] = React.useState(todayInLosAngeles());
   const [scenarioId, setScenarioId] = React.useState<string | null>(null);
   const platform = window.cpdWagePredictor?.platform ?? ('darwin' as DesktopPlatform);
@@ -99,8 +100,8 @@ export default function App() {
       />
     ),
     workers: <Workers year={year} onChange={(workers) => updateYear((current) => ({ ...current, workers }))} />,
-    schedule: <Schedule year={year} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} />,
-    adjustments: <Adjustments year={year} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
+    schedule: <Schedule year={year} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} onOpenChanges={(workerId, date) => { setChangeOpenRequest({ key: Date.now(), workerId, date }); setActiveTab('adjustments'); }} />,
+    adjustments: <Adjustments year={year} openRequest={changeOpenRequest} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
     scenarios: (
       <Scenarios
         year={year}

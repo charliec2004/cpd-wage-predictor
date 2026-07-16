@@ -108,6 +108,27 @@ describe('calculateForecast', () => {
     expect(result.daily.find((row) => row.date === '2026-09-15')?.minutes).toBe(180);
   });
 
+  it('applies a one-day schedule change without rewriting the repeating schedule', () => {
+    const year = createFiscalYear2026();
+    year.closures = [];
+    const fall = year.periods.find((period) => period.type === 'fall')!;
+    const schedule = recurring(fall.id, [[2, 540, 720]]);
+    schedule.dayOverrides = [
+      {
+        id: 'day-override',
+        date: '2026-09-08',
+        shifts: [{ id: 'short-shift', date: '2026-09-08', startMinute: 600, endMinute: 660 }],
+      },
+      { id: 'day-off', date: '2026-09-15', shifts: [] },
+    ];
+    year.workers = [worker(year, { schedules: [schedule] })];
+
+    const result = calculateForecast(year, '2026-09-01');
+    expect(result.daily.find((row) => row.date === '2026-09-08')).toMatchObject({ minutes: 60, source: 'Fall 2026 day change' });
+    expect(result.daily.find((row) => row.date === '2026-09-15')?.minutes).toBe(0);
+    expect(result.daily.find((row) => row.date === '2026-09-22')?.minutes).toBe(180);
+  });
+
   it('supports a separate weekly-total replacement workflow', () => {
     const year = createFiscalYear2026();
     year.closures = [];

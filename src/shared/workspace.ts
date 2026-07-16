@@ -83,6 +83,13 @@ export interface WorkerSchedule {
   mode: ScheduleMode;
   recurringShifts: RecurringShift[];
   datedShifts: DatedShift[];
+  dayOverrides?: ScheduleDayOverride[];
+}
+
+export interface ScheduleDayOverride {
+  id: string;
+  date: string;
+  shifts: DatedShift[];
 }
 
 export interface RecurringShift {
@@ -230,7 +237,18 @@ function isSchedule(value: unknown): value is WorkerSchedule {
     isString(value.periodId, 100) &&
     ['recurring', 'week-specific'].includes(String(value.mode)) &&
     isArrayOf(value.recurringShifts, 100, isRecurringShift) &&
-    isArrayOf(value.datedShifts, 500, isDatedShift)
+    isArrayOf(value.datedShifts, 500, isDatedShift) &&
+    (value.dayOverrides === undefined || isArrayOf(value.dayOverrides, 500, isScheduleDayOverride))
+  );
+}
+
+function isScheduleDayOverride(value: unknown): value is ScheduleDayOverride {
+  return (
+    isRecord(value) &&
+    isString(value.id, 100) &&
+    isDate(value.date) &&
+    isArrayOf(value.shifts, 20, isDatedShift) &&
+    value.shifts.every((shift) => shift.date === value.date)
   );
 }
 

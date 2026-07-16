@@ -10,7 +10,7 @@ import { DatePicker } from '../../components/ui/date-picker';
 import { HourInput } from '../../components/ui/hour-input';
 import { Input } from '../../components/ui/input';
 import { Field, MoneyInput, Select } from '../components/form-controls';
-import { formatCurrency, parseDollarInput } from '../lib/format';
+import { formatCurrency, formatCurrencyPrecise, parseDollarInput } from '../lib/format';
 
 interface WorkersProps {
   year: FiscalYear;
@@ -176,7 +176,7 @@ export function Workers({ year, onChange }: WorkersProps) {
                   </td>
                   <td className="border-b border-border px-3 py-2.5"><Badge variant="outline" className="capitalize">{worker.status}</Badge></td>
                   <td className="border-b border-border px-3 py-2.5 font-mono text-[11px]">{worker.activeStart} → {worker.activeEnd ?? 'ongoing'}</td>
-                  <td className="border-b border-border px-3 py-2.5 text-right font-mono">{formatCurrency(worker.hourlyRateCents)}/hr</td>
+                  <td className="border-b border-border px-3 py-2.5 text-right font-mono">{formatCurrencyPrecise(worker.hourlyRateCents)}/hr</td>
                   <td className="border-b border-border px-3 py-2.5 text-right font-mono">{worker.workStudy ? formatCurrency(worker.workStudy.awardCents) : 'None'}</td>
                   <td className="border-b border-border px-3 py-2.5 text-right font-mono">{outsideWeekly ? formatCurrency(outsideWeekly) : '—'}</td>
                   <td className="border-b border-border px-3 py-2.5">

@@ -1,5 +1,19 @@
 # First Vertical-Slice UI Plan
 
+## Implemented operational scheduling phase
+
+The Schedule workspace now opens on a Monday–Sunday week grid rather than a worker/period form. Each worker row shows exact shifts and forecasted weekly hours, gross wages, work-study coverage, and CPD-funded cost. Staff can move between weeks, return to Today, and see academic-period and office-closure context in place.
+
+Schedule editing has explicit authority boundaries:
+
+- A future date in a week-specific period replaces that date's planned shifts.
+- A future date in a recurring period creates a one-day schedule change without rewriting the semester template.
+- The same dialog can intentionally redirect to the repeating-schedule editor when the change should apply every week.
+- A past date cannot be rewritten from Schedule. It opens Changes with the worker and date already selected, preserving the rule that past scheduled time is assumed worked until corrected.
+- A stored empty one-day change means no shift on that date; removing it restores the repeating template.
+
+The Schedule page separates `Week plan`, `Repeating`, and `Year calendar` so daily staffing work does not compete visually with fiscal-year configuration. Main navigation now uses `Outlook` and `Changes`, matching the user's decision and correction workflows.
+
 ## Subject and job
 
 The subject is CPD's fiscal-year student-wage runway. The audience is a nontechnical CPD staff member responsible for deciding whether staffing plans are affordable. The first screen's single job is to answer “Are we on budget?” and make the next setup action obvious.

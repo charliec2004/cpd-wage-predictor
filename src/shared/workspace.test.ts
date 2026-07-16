@@ -25,4 +25,33 @@ describe('workspace validation', () => {
     });
     expect(validateWorkspace(workspace)).toBe(false);
   });
+
+  it('validates one-day schedule changes against their parent date', () => {
+    const workspace = createInitialWorkspace();
+    const year = workspace.fiscalYears[0]!;
+    const period = year.periods.find((candidate) => candidate.type === 'fall')!;
+    year.workers.push({
+      id: 'worker-1',
+      name: 'Jordan',
+      status: 'active',
+      activeStart: year.startDate,
+      hourlyRateCents: 1_690,
+      outsideJobs: [],
+      schedules: [{
+        id: 'schedule-1',
+        periodId: period.id,
+        mode: 'recurring',
+        recurringShifts: [],
+        datedShifts: [],
+        dayOverrides: [{
+          id: 'override-1',
+          date: '2026-09-08',
+          shifts: [{ id: 'shift-1', date: '2026-09-08', startMinute: 540, endMinute: 600 }],
+        }],
+      }],
+    });
+    expect(validateWorkspace(workspace)).toBe(true);
+    year.workers[0]!.schedules[0]!.dayOverrides![0]!.shifts[0]!.date = '2026-09-09';
+    expect(validateWorkspace(workspace)).toBe(false);
+  });
 });

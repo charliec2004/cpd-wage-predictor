@@ -13,14 +13,24 @@ import { formatLongDate, mondayOfWeek } from '../domain/dates';
 interface AdjustmentsProps {
   year: FiscalYear;
   onChange: (adjustments: HourAdjustment[]) => void;
+  openRequest?: { key: number; workerId: string; date: string } | null;
 }
 
-export function Adjustments({ year, onChange }: AdjustmentsProps) {
+export function Adjustments({ year, onChange, openRequest }: AdjustmentsProps) {
   const [scope, setScope] = React.useState<'day' | 'week'>('day');
   const [workerId, setWorkerId] = React.useState(year.workers[0]?.id ?? '');
   const [date, setDate] = React.useState('');
   const [hours, setHours] = React.useState(0);
   const [note, setNote] = React.useState('');
+
+  React.useEffect(() => {
+    if (!openRequest) return;
+    setScope('day');
+    setWorkerId(openRequest.workerId);
+    setDate(openRequest.date);
+    setHours(0);
+    setNote('');
+  }, [openRequest]);
 
   const add = () => {
     if (!workerId || !date) return;
@@ -43,13 +53,13 @@ export function Adjustments({ year, onChange }: AdjustmentsProps) {
   return (
     <div className="animate-fade-in space-y-4">
       <div>
-        <h1 className="text-[18px] font-semibold tracking-tight">Worked-hour adjustments</h1>
-        <p className="mt-1 text-[12px] text-muted-foreground">Schedules are assumed worked. Add a correction only when a day or week differed.</p>
+        <h1 className="text-[18px] font-semibold tracking-tight">Changes</h1>
+        <p className="mt-1 text-[12px] text-muted-foreground">Schedules are assumed worked. Record only what happened differently.</p>
       </div>
       <NoticePanel
         variant="info"
-        title="No weekly confirmation required"
-        description="A daily correction is the primary workflow. Weekly replacement is separate and preserves future recurring schedules."
+        title="No confirmation required"
+        description="If everyone worked as scheduled, do nothing. A correction changes only that day or week and preserves the repeating schedule."
       />
       {year.workers.length === 0 ? (
         <NoticePanel variant="warning" title="Add a worker before recording adjustments" />
@@ -69,7 +79,7 @@ export function Adjustments({ year, onChange }: AdjustmentsProps) {
             </div>
           </section>
           <section className="overflow-hidden rounded-lg border border-border bg-card">
-            <div className="border-b border-border bg-surface-900/55 px-4 py-3"><h2 className="text-[13px] font-semibold">Saved adjustments</h2></div>
+            <div className="border-b border-border bg-surface-900/55 px-4 py-3"><h2 className="text-[13px] font-semibold">Recorded changes</h2></div>
             <table className="w-full min-w-[620px] border-collapse text-left text-[12px]">
               <thead className="bg-surface-900 text-[11px] text-muted-foreground"><tr><th className="border-b border-border px-3 py-2 font-medium">Worker</th><th className="border-b border-border px-3 py-2 font-medium">Scope</th><th className="border-b border-border px-3 py-2 font-medium">Date</th><th className="border-b border-border px-3 py-2 text-right font-medium">Replacement hours</th><th className="border-b border-border px-3 py-2 font-medium">Note</th><th className="border-b border-border px-3 py-2" /></tr></thead>
               <tbody>{year.adjustments.slice().sort((a, b) => b.date.localeCompare(a.date)).map((adjustment) => (

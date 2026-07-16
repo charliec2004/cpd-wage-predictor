@@ -11,7 +11,7 @@ import { Input } from '../../components/ui/input';
 import { Field, MoneyInput, Select } from '../components/form-controls';
 import { calculateForecast } from '../domain/forecast';
 import { todayInLosAngeles } from '../domain/dates';
-import { formatCurrency, parseDollarInput } from '../lib/format';
+import { formatCurrency, formatCurrencyPrecise, parseDollarInput } from '../lib/format';
 
 interface ScenariosProps {
   year: FiscalYear;
@@ -135,7 +135,7 @@ export function Scenarios({ year, onChange, createRequestKey = 0, onScenarioCrea
                 </div>
                 <div className="mt-3 flex items-center gap-2"><Checkbox id="scenario-hire-ws" checked={hire.hasWorkStudy} onCheckedChange={(checked) => setHire({ ...hire, hasWorkStudy: checked === true })} /><label htmlFor="scenario-hire-ws" className="text-[12px] font-medium">Assume work-study</label>{hire.hasWorkStudy && <MoneyInput aria-label="Work-study award" className="w-28" value={hire.award} onValueChange={(value) => setHire((current) => ({ ...current, award: value }))} />}</div>
                 <Button className="mt-4 w-full" variant="outline" onClick={addHire}><Plus className="h-4 w-4" />Add planned hire</Button>
-                <div className="mt-4 divide-y divide-border border-t border-border">{selected.plannedHires.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{item.label}</div><div className="font-mono text-[10px] text-muted-foreground">{item.startDate} · {(item.averageWeeklyMinutes / 60).toFixed(1)}h/week · {formatCurrency(item.hourlyRateCents)}/hr</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove planned hire" onClick={() => updateSelected({ ...selected, plannedHires: selected.plannedHires.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>
+                <div className="mt-4 divide-y divide-border border-t border-border">{selected.plannedHires.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{item.label}</div><div className="font-mono text-[10px] text-muted-foreground">{item.startDate} · {(item.averageWeeklyMinutes / 60).toFixed(1)}h/week · {formatCurrencyPrecise(item.hourlyRateCents)}/hr</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove planned hire" onClick={() => updateSelected({ ...selected, plannedHires: selected.plannedHires.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>
               </section>
               <section className="rounded-lg border border-border bg-card p-4">
                 <h2 className="text-[13px] font-semibold">Earlier departures</h2>

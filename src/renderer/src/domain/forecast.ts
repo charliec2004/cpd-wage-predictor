@@ -68,7 +68,7 @@ function overlapMinutes(startA: number, endA: number, startB: number, endB: numb
   return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
 }
 
-function payableShiftMinutes(shift: RecurringShift, closures: OfficeClosure[]): number {
+function payableShiftMinutes(shift: Pick<RecurringShift, 'startMinute' | 'endMinute'>, closures: OfficeClosure[]): number {
   let payable = shift.endMinute - shift.startMinute;
   for (const closure of closures) {
     if (closure.startMinute === undefined || closure.endMinute === undefined) return 0;
@@ -84,10 +84,15 @@ function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string):
   if (!schedule) return { minutes: 0, source: `No ${period.name} schedule` };
   const closures = year.closures.filter((closure) => closure.date === date);
   if (schedule.mode === 'recurring') {
-    const shifts = schedule.recurringShifts.filter((shift) => shift.weekday === weekday(date));
+    const dayOverride = schedule.dayOverrides?.find((override) => override.date === date);
+    const shifts = dayOverride?.shifts ?? schedule.recurringShifts.filter((shift) => shift.weekday === weekday(date));
     return {
       minutes: shifts.reduce((total, shift) => total + payableShiftMinutes(shift, closures), 0),
-      source: closures.length > 0 ? `${period.name} schedule, clipped by closure` : `${period.name} recurring schedule`,
+      source: closures.length > 0
+        ? `${period.name} ${dayOverride ? 'day change' : 'schedule'}, clipped by closure`
+        : dayOverride
+          ? `${period.name} day change`
+          : `${period.name} recurring schedule`,
     };
   }
   const shifts = schedule.datedShifts.filter((shift) => shift.date === date);
