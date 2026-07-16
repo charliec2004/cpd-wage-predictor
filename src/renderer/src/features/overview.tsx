@@ -376,7 +376,7 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
                   )}
                 </div>
                 <div className="min-w-0 md:pl-6">
-                  <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Remaining' : 'Partial balance'}</div>
+                  <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Remaining at the end of the fiscal year' : 'Partial balance'}</div>
                   <div className={`mt-1 font-mono text-[24px] font-semibold tracking-tight tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
                 </div>
               </div>
