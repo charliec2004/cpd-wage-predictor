@@ -28,6 +28,7 @@ export interface FiscalYear {
   workers: Worker[];
   adjustments: HourAdjustment[];
   scenarios: ForecastScenario[];
+  periodEstimates: PeriodEstimate[];
 }
 
 export interface AcademicPeriod {
@@ -144,6 +145,32 @@ export interface DepartureOverride {
   id: string;
   workerId: string;
   endDate: string;
+}
+
+export type ForecastEstimateVariant = 'low' | 'expected' | 'high';
+
+export interface PeriodEstimateProfile {
+  id: string;
+  workerId?: string;
+  label: string;
+  hourlyRateCents: number;
+  workStudyAwardCents?: number;
+  weekdayMinutes: [number, number, number, number, number, number, number];
+}
+
+export interface PeriodEstimate {
+  id: string;
+  periodId: string;
+  status: 'estimated' | 'no-staffing';
+  sourceLabel: string;
+  sourceFiscalYearId?: string;
+  sourcePeriodId?: string;
+  createdAt: string;
+  lowWeeklyMinutes: number;
+  expectedWeeklyMinutes: number;
+  highWeeklyMinutes: number;
+  profiles: PeriodEstimateProfile[];
+  note: string;
 }
 
 export interface StorageResult<T = undefined> {
@@ -349,6 +376,50 @@ function isScenario(value: unknown): value is ForecastScenario {
   );
 }
 
+function isPeriodEstimateProfile(value: unknown): value is PeriodEstimateProfile {
+  return (
+    isRecord(value) &&
+    isString(value.id, 100) &&
+    isOptionalString(value.workerId, 100) &&
+    isString(value.label, 150) &&
+    isInteger(value.hourlyRateCents, 1, 1_000_000) &&
+    (value.workStudyAwardCents === undefined || isInteger(value.workStudyAwardCents, 0, 10_000_000)) &&
+    Array.isArray(value.weekdayMinutes) &&
+    value.weekdayMinutes.length === 7 &&
+    value.weekdayMinutes.every((minutes) => isInteger(minutes, 0, 1_440))
+  );
+}
+
+function isPeriodEstimate(value: unknown): value is PeriodEstimate {
+  if (!isRecord(value)) return false;
+  const statusValid = ['estimated', 'no-staffing'].includes(String(value.status));
+  const hoursValid =
+    isInteger(value.lowWeeklyMinutes, 0, 100_800) &&
+    isInteger(value.expectedWeeklyMinutes, 0, 100_800) &&
+    isInteger(value.highWeeklyMinutes, 0, 100_800) &&
+    value.lowWeeklyMinutes <= value.expectedWeeklyMinutes &&
+    value.expectedWeeklyMinutes <= value.highWeeklyMinutes;
+  const profilesValid = isArrayOf(value.profiles, 1_000, isPeriodEstimateProfile);
+  const profiles = profilesValid ? value.profiles as PeriodEstimateProfile[] : [];
+  const profileMinutes = profiles.reduce((total, profile) => total + profile.weekdayMinutes.reduce((sum, minutes) => sum + minutes, 0), 0);
+  return (
+    isString(value.id, 100) &&
+    isString(value.periodId, 100) &&
+    statusValid &&
+    isString(value.sourceLabel, 200) &&
+    isOptionalString(value.sourceFiscalYearId, 100) &&
+    isOptionalString(value.sourcePeriodId, 100) &&
+    isTimestamp(value.createdAt) &&
+    hoursValid &&
+    profilesValid &&
+    typeof value.note === 'string' &&
+    value.note.length <= 1_000 &&
+    (value.status === 'estimated'
+      ? Number(value.expectedWeeklyMinutes) > 0 && profileMinutes > 0
+      : value.lowWeeklyMinutes === 0 && value.expectedWeeklyMinutes === 0 && value.highWeeklyMinutes === 0 && profiles.length === 0)
+  );
+}
+
 function isFiscalYear(value: unknown): value is FiscalYear {
   if (
     !isRecord(value) ||
@@ -362,7 +433,8 @@ function isFiscalYear(value: unknown): value is FiscalYear {
     !isArrayOf(value.closures, 1000, isClosure) ||
     !isArrayOf(value.workers, 1000, isWorker) ||
     !isArrayOf(value.adjustments, 20_000, isAdjustment) ||
-    !isArrayOf(value.scenarios, 100, isScenario)
+    !isArrayOf(value.scenarios, 100, isScenario) ||
+    (value.periodEstimates !== undefined && !isArrayOf(value.periodEstimates, 100, isPeriodEstimate))
   ) return false;
   const year = value as unknown as FiscalYear;
   if (year.startDate > year.endDate || year.periods.length === 0) return false;
@@ -397,6 +469,13 @@ function isFiscalYear(value: unknown): value is FiscalYear {
         scenario.plannedHires.some((hire) => hire.startDate < year.startDate || hire.startDate > year.endDate || (hire.endDate !== undefined && hire.endDate < hire.startDate)) ||
         scenario.departureOverrides.some((departure) => !workerIds.has(departure.workerId) || departure.endDate < year.startDate || departure.endDate > year.endDate),
     )
+  ) return false;
+  const periodEstimates = (value.periodEstimates ?? []) as PeriodEstimate[];
+  if (
+    periodEstimates.some((estimate) =>
+      !periodIds.has(estimate.periodId) ||
+      estimate.profiles.some((profile) => profile.workerId !== undefined && !workerIds.has(profile.workerId))) ||
+    new Set(periodEstimates.map((estimate) => estimate.periodId)).size !== periodEstimates.length
   ) return false;
   return true;
 }

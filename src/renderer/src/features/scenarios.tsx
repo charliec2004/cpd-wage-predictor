@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ArrowRight, GitBranch, Plus, Trash2, UserPlus } from 'lucide-react';
-import type { FiscalYear, ForecastScenario } from '../../../shared/workspace';
+import type { FiscalYear, ForecastScenario, PeriodEstimate, Workspace } from '../../../shared/workspace';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -12,10 +12,14 @@ import { Field, MoneyInput, Select } from '../components/form-controls';
 import { calculateForecast } from '../domain/forecast';
 import { todayInLosAngeles } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise, parseDollarInput } from '../lib/format';
+import { ForecastPlanner } from './forecast-planner';
 
 interface ScenariosProps {
+  workspace: Workspace;
   year: FiscalYear;
   onChange: (scenarios: ForecastScenario[]) => void;
+  onPeriodEstimatesChange: (estimates: PeriodEstimate[]) => void;
+  onOpenSchedule: () => void;
   createRequestKey?: number;
   onScenarioCreated?: (scenarioId: string) => void;
 }
@@ -27,7 +31,7 @@ const scenarioRoleLabels: Record<ForecastScenario['role'], string> = {
   'prudent-high': 'Higher spending',
 };
 
-export function Scenarios({ year, onChange, createRequestKey = 0, onScenarioCreated }: ScenariosProps) {
+export function Scenarios({ workspace, year, onChange, onPeriodEstimatesChange, onOpenSchedule, createRequestKey = 0, onScenarioCreated }: ScenariosProps) {
   const [selectedId, setSelectedId] = React.useState(year.scenarios[0]?.id ?? '');
   const [createOpen, setCreateOpen] = React.useState(false);
   const [scenarioName, setScenarioName] = React.useState('');
@@ -35,8 +39,12 @@ export function Scenarios({ year, onChange, createRequestKey = 0, onScenarioCrea
   const [hire, setHire] = React.useState({ label: '', startDate: '', wage: '16.90', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
   const [departure, setDeparture] = React.useState({ workerId: year.workers[0]?.id ?? '', endDate: '' });
   const selected = year.scenarios.find((scenario) => scenario.id === selectedId);
-  const baseline = React.useMemo(() => calculateForecast(year, todayInLosAngeles()), [year]);
-  const scenarioForecast = React.useMemo(() => selected ? calculateForecast(year, todayInLosAngeles(), selected.id) : baseline, [baseline, selected, year]);
+  const baseline = React.useMemo(() => calculateForecast(year, todayInLosAngeles(), null, 'expected'), [year]);
+  const scenarioVariant = selected?.role === 'plausible-low' ? 'low' : selected?.role === 'prudent-high' ? 'high' : 'expected';
+  const scenarioForecast = React.useMemo(
+    () => selected ? calculateForecast(year, todayInLosAngeles(), selected.id, scenarioVariant) : baseline,
+    [baseline, scenarioVariant, selected, year],
+  );
 
   React.useEffect(() => {
     if (!year.scenarios.some((scenario) => scenario.id === selectedId)) setSelectedId(year.scenarios[0]?.id ?? '');
@@ -101,10 +109,19 @@ export function Scenarios({ year, onChange, createRequestKey = 0, onScenarioCrea
     <div className="animate-fade-in space-y-4">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-[18px] font-semibold tracking-tight">Scenarios</h1>
-          <p className="mt-1 text-[12px] text-muted-foreground">Save alternative hires and departures without changing the main operating plan.</p>
+          <h1 className="text-[18px] font-semibold tracking-tight">Forecasts</h1>
+          <p className="mt-1 text-[12px] text-muted-foreground">Cover unknown periods with estimates, then test possible staffing changes.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" />Add scenario</Button>
+      </div>
+
+      <ForecastPlanner workspace={workspace} year={year} onChange={onPeriodEstimatesChange} onOpenSchedule={onOpenSchedule} />
+
+      <div className="flex items-end justify-between gap-4 pt-3">
+        <div>
+          <h2 className="text-[15px] font-semibold">Staffing scenarios</h2>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Optional alternatives for hires and early departures. These sit on top of the fiscal-year coverage above.</p>
+        </div>
       </div>
       <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
         <aside className="rounded-lg border border-border bg-card">

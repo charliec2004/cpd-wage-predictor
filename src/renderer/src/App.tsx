@@ -10,7 +10,7 @@ import { Button } from '../components/ui/button';
 import { ActionSelect } from '../components/ui/action-select';
 import { ConfirmDialog } from '../components/ui/confirm-dialog';
 import { NoticePanel } from '../components/ui/notice-panel';
-import { calculateForecast } from './domain/forecast';
+import { calculateForecast, calculateForecastRange } from './domain/forecast';
 import { todayInLosAngeles } from './domain/dates';
 import { createNextFiscalYearTemplate } from './domain/seed';
 import { Adjustments } from './features/adjustments';
@@ -29,7 +29,7 @@ const tabs: DesktopTab[] = [
   { id: 'workers', label: 'Workers', icon: <UserRound className="h-3.5 w-3.5" /> },
   { id: 'schedule', label: 'Schedule', icon: <CalendarDays className="h-3.5 w-3.5" /> },
   { id: 'adjustments', label: 'Changes', icon: <WandSparkles className="h-3.5 w-3.5" /> },
-  { id: 'scenarios', label: 'Scenarios', icon: <GitBranch className="h-3.5 w-3.5" /> },
+  { id: 'scenarios', label: 'Forecasts', icon: <GitBranch className="h-3.5 w-3.5" /> },
 ];
 
 function updateFiscalYear(workspace: Workspace, year: FiscalYear): Workspace {
@@ -65,7 +65,16 @@ export default function App() {
   const latestYear = [...workspace.fiscalYears].sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? year;
   const nextStartYear = Number(latestYear.startDate.slice(0, 4)) + 1;
   const nextFiscalYearLabel = `FY ${nextStartYear}–${String(nextStartYear + 1).slice(-2)}`;
-  const forecast = calculateForecast(year, asOfDate, scenarioId);
+  const forecastRange = calculateForecastRange(year, asOfDate);
+  const selectedScenario = year.scenarios.find((scenario) => scenario.id === scenarioId);
+  const selectedVariant = selectedScenario?.role === 'plausible-low'
+    ? 'low'
+    : selectedScenario?.role === 'prudent-high'
+      ? 'high'
+      : 'expected';
+  const forecast = scenarioId
+    ? calculateForecast(year, asOfDate, scenarioId, selectedVariant)
+    : forecastRange.expected;
   const updateYear = (updater: (current: FiscalYear) => FiscalYear) => {
     workspaceState.updateWorkspace((current) => {
       const active = current.fiscalYears.find((candidate) => candidate.id === current.activeFiscalYearId);
@@ -87,6 +96,7 @@ export default function App() {
       <Overview
         year={year}
         forecast={forecast}
+        forecastRange={forecastRange}
         asOfDate={forecast.asOfDate}
         scenarioId={scenarioId}
         onAsOfDateChange={setAsOfDate}
@@ -95,6 +105,7 @@ export default function App() {
         onOpenWorkers={() => setActiveTab('workers')}
         onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
         onOpenYearSetup={() => { setScheduleViewRequest({ key: Date.now(), view: 'calendar' }); setActiveTab('schedule'); }}
+        onOpenForecasts={() => setActiveTab('scenarios')}
         onAddScenario={() => {
           setActiveTab('scenarios');
           setScenarioCreateRequest((request) => request + 1);
@@ -106,10 +117,13 @@ export default function App() {
     adjustments: <Adjustments year={year} openRequest={changeOpenRequest} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
     scenarios: (
       <Scenarios
+        workspace={workspace}
         year={year}
         createRequestKey={scenarioCreateRequest}
         onScenarioCreated={setScenarioId}
         onChange={(scenarios) => updateYear((current) => ({ ...current, scenarios }))}
+        onPeriodEstimatesChange={(periodEstimates) => updateYear((current) => ({ ...current, periodEstimates }))}
+        onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
       />
     ),
   }[activeTab];

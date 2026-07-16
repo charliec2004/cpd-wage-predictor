@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { FiscalYear, Worker, WorkerSchedule } from '../../../shared/workspace';
-import { calculateForecast, scheduledPayableMinutes } from './forecast';
+import { assessForecastCoverageSegments, calculateForecast, calculateForecastRange, scheduledPayableMinutes } from './forecast';
 import { createFiscalYear2026, createInitialWorkspace, createNextFiscalYearTemplate, normalizeWorkspaceRules } from './seed';
 import { datesBetween } from './dates';
+import { createNoStaffingEstimate, createPeriodEstimateFromComparable, periodHasKnownSchedule } from './period-estimates';
 
 function recurring(periodId: string, shifts: Array<[number, number, number]>): WorkerSchedule {
   return {
@@ -255,6 +256,81 @@ describe('calculateForecast', () => {
     expect(baseline.totals.cpdCostCents).toBe(0);
     expect(scenario.totals.cpdCostCents).toBeGreaterThan(0);
     expect(year.workers).toHaveLength(0);
+  });
+
+  it('keeps unknown periods visibly missing instead of treating them as a zero-dollar forecast', () => {
+    const year = createFiscalYear2026();
+    const fall = year.periods.find((period) => period.type === 'fall')!;
+    year.closures = [];
+    year.workers = [worker(year, { schedules: [recurring(fall.id, [[1, 540, 660]])] })];
+
+    const result = calculateForecast(year, '2026-07-15');
+    expect(result.complete).toBe(false);
+    expect(result.coverage.find((period) => period.periodId === fall.id)?.status).toBe('scheduled');
+    expect(result.coverage.find((period) => period.name === 'Spring 2027')?.status).toBe('missing');
+    expect(result.warnings).toContain('Spring 2027 has no schedule or staffing estimate.');
+  });
+
+  it('creates a lower/expected/higher Spring estimate from Fall and lets an exact schedule replace it', () => {
+    const year = createFiscalYear2026();
+    const fall = year.periods.find((period) => period.type === 'fall')!;
+    const spring = year.periods.find((period) => period.type === 'spring')!;
+    year.closures = [];
+    year.workers = [worker(year, {
+      workStudy: { awardCents: 300_000 },
+      schedules: [recurring(fall.id, [[1, 540, 660], [3, 540, 720]])],
+    })];
+    year.periodEstimates = [createPeriodEstimateFromComparable(year, spring, year, fall)];
+
+    const range = calculateForecastRange(year, '2026-07-15');
+    expect(range.low.totals.cpdCostCents).toBeLessThanOrEqual(range.expected.totals.cpdCostCents);
+    expect(range.expected.totals.cpdCostCents).toBeLessThanOrEqual(range.high.totals.cpdCostCents);
+    expect(range.expected.coverage.find((period) => period.periodId === spring.id)?.status).toBe('estimated');
+    expect(range.expected.daily.some((row) => row.sourceKind === 'estimate' && row.date >= spring.startDate && row.date <= spring.endDate)).toBe(true);
+
+    year.workers[0]!.schedules.push(recurring(spring.id, [[1, 600, 720]]));
+    const exact = calculateForecast(year, '2026-07-15');
+    const springMonday = datesBetween(spring.startDate, spring.endDate).find((date) => new Date(`${date}T00:00:00Z`).getUTCDay() === 1)!;
+    expect(exact.daily.find((row) => row.date === springMonday)).toMatchObject({ minutes: 120, sourceKind: 'schedule', state: 'scheduled' });
+  });
+
+  it('splits current-period source coverage into dated past, corrected, and future ranges', () => {
+    const year = createFiscalYear2026();
+    const summer = year.periods.find((period) => period.type === 'summer')!;
+    year.workers = [worker(year, { schedules: [recurring(summer.id, [[1, 540, 660]])] })];
+    year.adjustments = [{ id: 'actual', workerId: 'worker-1', scope: 'day', date: '2026-07-14', minutes: 60, note: 'Actual hours' }];
+    const segments = assessForecastCoverageSegments(year, '2026-07-15').filter((segment) => segment.periodId === summer.id);
+
+    expect(segments).toEqual(expect.arrayContaining([
+      expect.objectContaining({ endDate: '2026-07-13', state: 'assumed-worked' }),
+      expect.objectContaining({ startDate: '2026-07-14', endDate: '2026-07-14', state: 'corrected' }),
+      expect.objectContaining({ startDate: '2026-07-15', endDate: '2026-07-15', state: 'assumed-worked' }),
+      expect.objectContaining({ startDate: '2026-07-16', endDate: summer.endDate, state: 'scheduled' }),
+    ]));
+  });
+
+  it('distinguishes an explicit no-staffing decision from missing information', () => {
+    const year = createFiscalYear2026();
+    const spring = year.periods.find((period) => period.type === 'spring')!;
+    year.periodEstimates = [createNoStaffingEstimate(spring)];
+    const result = calculateForecast(year, '2026-07-15');
+    expect(result.coverage.find((period) => period.periodId === spring.id)?.status).toBe('no-staffing');
+    expect(result.warnings).not.toContain('Spring 2027 has no schedule or staffing estimate.');
+  });
+
+  it('does not recommend an incomplete week-specific period as a forecast source', () => {
+    const year = createFiscalYear2026();
+    const summer = year.periods.find((period) => period.type === 'summer')!;
+    year.workers = [worker(year, {
+      schedules: [{
+        id: 'partial-summer',
+        periodId: summer.id,
+        mode: 'week-specific',
+        recurringShifts: [],
+        datedShifts: [{ id: 'one-shift', date: summer.startDate, startMinute: 540, endMinute: 660 }],
+      }],
+    })];
+    expect(periodHasKnownSchedule(year, summer.id)).toBe(false);
   });
 
   it('classifies every fiscal date into exactly one seed period', () => {

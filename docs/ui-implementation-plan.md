@@ -36,7 +36,7 @@ These are the Semester Scheduler's existing semantic tokens, not a visual fork.
 
 ```text
 ┌ native title bar · FY selector · save · theme/settings ────┐
-├ Overview | Workers | Schedule | Adjustments | Scenarios ───┤
+├ Outlook | Workers | Schedule | Changes | Forecasts ────────┤
 │ Budget outlook · scenario · as-of                            │
 │ ┌ Budget status + three supporting totals ────────────────┐ │
 │ └ Thin annual actual/planned runway ──────────────────────┘ │
@@ -54,7 +54,26 @@ Forms and explanation screens remain constrained. The fiscal runway and schedule
 
 ## Signature element
 
-The forecast seam is a thin temporal rule on the annual runway at the selected as-of date. Green elapsed time means “assumed worked”; neutral time means “planned.” Week rows keep the more exact state labels.
+The forecast seam is a thin temporal rule on the annual runway at the selected as-of date. Source states use neutral fills and dashed treatments; green stays reserved for productive actions and healthy budget status. Week rows keep the more exact state labels.
+
+## Forecast coverage workflow
+
+`Forecasts` begins with one fiscal-year coverage ledger. It is the required operating workflow; saved staffing scenarios are optional overlays below it.
+
+Each meaningful academic period shows its exact start and end dates and resolves into dated source ranges:
+
+- `Assumed worked`: a past schedule is used because no correction says otherwise. This is not labeled payroll-confirmed.
+- `Actual correction`: CPD manually replaced the scheduled hours for a day or week in Changes.
+- `Scheduled`: exact future shifts are known but have not happened.
+- `Estimated`: unknown time uses a saved staffing estimate.
+- `No staffing`: CPD explicitly chose zero student staffing.
+- `Missing`: neither a schedule nor an estimate exists. Missing time contributes no assumed dollars and makes the annual forecast incomplete.
+
+For an unknown period, `Plan period` recommends the closest earlier comparable period. Same-type periods rank first; Fall and Spring can seed each other. The source worker patterns are copied as a snapshot, and CPD can edit lower, expected, and higher paid team hours per normal week. Defaults are 85%, 100%, and 115% of the comparable pattern. Full closures and early closures reduce estimated hours. Exact schedules replace the estimate wherever entered.
+
+Outlook uses the expected estimate by default and shows a lower-to-higher CPD-cost range when those variants differ. Its timeline and weekly table distinguish assumed past, corrected hours, exact future schedules, estimates, scenarios, and missing coverage. Once a missing week is reached, dollar cells say `Not forecast` and the running balance says `Incomplete` instead of showing a misleading `$0`.
+
+The app currently has no payroll import. Past scheduled hours therefore remain `Assumed worked` until corrected; the interface must not call them posted or payroll-confirmed.
 
 ## Self-critique and revision
 

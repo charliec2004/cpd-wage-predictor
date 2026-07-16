@@ -110,6 +110,7 @@ export function createFiscalYear2026(): FiscalYear {
     ],
     workers: [],
     adjustments: [],
+    periodEstimates: [],
     scenarios: [
       {
         id: 'scenario-expected',
@@ -159,6 +160,7 @@ export function normalizeWorkspaceRules(workspace: Workspace): Workspace {
     ...workspace,
     fiscalYears: workspace.fiscalYears.map((year) => ({
       ...year,
+      periodEstimates: year.periodEstimates ?? [],
       periods: year.periods.map((period) => {
         const legacyPostSpring = period.name === 'Post-Spring / FY close';
         const nextPeriod: AcademicPeriod = legacyPostSpring
@@ -202,6 +204,7 @@ export function createNextFiscalYearTemplate(current: FiscalYear): FiscalYear {
     closures: [],
     workers: [],
     adjustments: [],
+    periodEstimates: [],
     scenarios: [
       {
         id: `scenario-${crypto.randomUUID()}`,

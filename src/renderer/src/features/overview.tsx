@@ -1,11 +1,11 @@
 import * as React from 'react';
-import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, WalletCards } from 'lucide-react';
+import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, GitBranch, WalletCards } from 'lucide-react';
 import { isWorkStudyEligiblePeriod, type FiscalYear } from '../../../shared/workspace';
 import { ActionSelect } from '../../components/ui/action-select';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
-import type { ForecastResult, WeeklyForecastRow } from '../domain/forecast';
+import type { ForecastCoverageSegment, ForecastRange, ForecastResult, WeeklyForecastRow } from '../domain/forecast';
 import { formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 import { Field, MoneyInput } from '../components/form-controls';
@@ -14,6 +14,7 @@ import { budgetHealth, type BudgetHealth } from '../domain/budget-health';
 interface OverviewProps {
   year: FiscalYear;
   forecast: ForecastResult;
+  forecastRange: ForecastRange;
   asOfDate: string;
   scenarioId: string | null;
   onAsOfDateChange: (date: string) => void;
@@ -22,6 +23,7 @@ interface OverviewProps {
   onOpenWorkers: () => void;
   onOpenSchedule: () => void;
   onOpenYearSetup: () => void;
+  onOpenForecasts: () => void;
   onAddScenario: () => void;
 }
 
@@ -34,9 +36,12 @@ const scenarioRoleDescriptions: Record<FiscalYear['scenarios'][number]['role'], 
 
 function stateBadge(row: WeeklyForecastRow) {
   if (row.state === 'assumed-worked') return <Badge variant="outline">Worked</Badge>;
+  if (row.state === 'corrected') return <Badge variant="outline">Actual correction</Badge>;
   if (row.state === 'mixed') return <Badge className="border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-300">This week</Badge>;
+  if (row.state === 'estimated') return <Badge className="border-dashed border-surface-500 bg-transparent text-foreground">Estimated</Badge>;
+  if (row.state === 'missing') return <Badge variant="outline" className="border-dashed">Missing forecast</Badge>;
   if (row.state === 'scenario') return <Badge className="border-dashed">Scenario</Badge>;
-  return <Badge variant="secondary">Planned</Badge>;
+  return <Badge variant="secondary">Scheduled</Badge>;
 }
 
 function Step({ number, title, detail, complete, children }: { number: number; title: string; detail: string; complete: boolean; children: React.ReactNode }) {
@@ -177,7 +182,19 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
   );
 }
 
-function ForecastRunway({ year, asOfDate }: { year: FiscalYear; asOfDate: string }) {
+const coverageBarClass: Record<ForecastCoverageSegment['state'], string> = {
+  'assumed-worked': 'bg-surface-500',
+  corrected: 'bg-foreground',
+  scheduled: 'bg-surface-300',
+  estimated: 'border border-dashed border-surface-400 bg-surface-700/40',
+  'assumed-and-estimated': 'border border-dashed border-surface-300 bg-surface-600',
+  'scheduled-and-estimated': 'border border-dashed border-surface-300 bg-surface-700/60',
+  'no-staffing': 'border border-surface-600 bg-surface-900',
+  missing: 'border border-dashed border-warning-500/70 bg-transparent',
+};
+
+function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: ForecastResult }) {
+  const { asOfDate, coverageSegments, totals } = forecast;
   const start = parseIsoDate(year.startDate).getTime();
   const end = parseIsoDate(year.endDate).getTime();
   const seam = Math.min(100, Math.max(0, ((parseIsoDate(asOfDate).getTime() - start) / (end - start)) * 100));
@@ -191,11 +208,23 @@ function ForecastRunway({ year, asOfDate }: { year: FiscalYear; asOfDate: string
       <div className="grid grid-cols-12">
         {months.map((month) => <div key={month} className="text-center font-mono text-[10px] text-muted-foreground">{month}</div>)}
       </div>
-      <div className="relative mt-2 h-2 rounded-full bg-surface-800">
-        <div className="absolute inset-y-0 left-0 rounded-full bg-[hsl(var(--action-primary))]" style={{ width: `${seam}%` }} />
+      <div className="relative mt-2 h-3 overflow-hidden rounded-sm bg-surface-800">
+        {coverageSegments.map((segment) => {
+          const left = Math.max(0, ((parseIsoDate(segment.startDate).getTime() - start) / (end - start)) * 100);
+          const right = Math.min(100, ((parseIsoDate(segment.endDate).getTime() - start) / (end - start)) * 100);
+          return <div key={`${segment.periodId}-${segment.startDate}-${segment.state}`} title={`${segment.periodName} · ${formatShortDate(segment.startDate)}–${formatShortDate(segment.endDate)} · ${segment.sourceLabel}`} className={`absolute inset-y-0 ${coverageBarClass[segment.state]}`} style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }} />;
+        })}
         <div className="absolute -top-1 h-4 w-px bg-foreground" style={{ left: `${seam}%` }} />
       </div>
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground"><span>Assumed worked</span><span>Planned</span></div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+        <span><span className="mr-1.5 inline-block h-2 w-3 bg-surface-500" />Assumed past · {totals.assumedWorkedHours.toFixed(1)}h</span>
+        {totals.correctedHours > 0 && <span><span className="mr-1.5 inline-block h-2 w-3 bg-foreground" />Actual corrections · {totals.correctedHours.toFixed(1)}h</span>}
+        <span><span className="mr-1.5 inline-block h-2 w-3 bg-surface-300" />Future scheduled · {totals.scheduledHours.toFixed(1)}h</span>
+        <span><span className="mr-1.5 inline-block h-2 w-3 border border-dashed border-surface-400" />Estimated · {totals.estimatedHours.toFixed(1)}h</span>
+        {totals.scenarioHours > 0 && <span>Scenario · {totals.scenarioHours.toFixed(1)}h</span>}
+        <span><span className="mr-1.5 inline-block h-2 w-3 border border-dashed border-warning-500/70" />Missing</span>
+      </div>
+      <p className="mt-2 text-[10px] text-muted-foreground">Past schedules are assumed worked unless a correction is entered. This app does not independently confirm payroll payment.</p>
     </section>
   );
 }
@@ -216,7 +245,7 @@ const budgetHealthPresentation: Record<BudgetHealth, { label: string; text: stri
   unknown: { label: 'No budget', text: 'text-muted-foreground', bar: 'bg-surface-500' },
 };
 
-export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onAddScenario }: OverviewProps) {
+export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onOpenForecasts, onAddScenario }: OverviewProps) {
   const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
   React.useEffect(() => setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100)), [year.id, year.budgetCents]);
   const commitBudget = (value = budgetDraft) => {
@@ -230,13 +259,19 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
   const progressWidth = Math.min(100, Math.max(0, spendRatio));
   const overBudget = forecast.totals.remainingBudgetCents < 0;
   const overallBudgetHealth = budgetHealth(forecast.totals.remainingBudgetCents, year.budgetCents);
-  const overallHealthPresentation = budgetHealthPresentation[overallBudgetHealth];
+  const overallHealthPresentation = forecast.complete
+    ? budgetHealthPresentation[overallBudgetHealth]
+    : { label: 'Incomplete forecast', text: 'text-muted-foreground', bar: 'bg-surface-500' };
   const selectedScenario = year.scenarios.find((scenario) => scenario.id === scenarioId);
   let runningBalance = year.budgetCents;
+  let incompleteToDate = false;
   const rows = forecast.weekly.map((row) => {
     runningBalance -= row.cpdCostCents;
-    return { ...row, runningBalance };
+    if (row.state === 'missing') incompleteToDate = true;
+    return { ...row, runningBalance, incompleteToDate };
   });
+  const missingPeriods = forecast.coverage.filter((period) => period.status === 'missing');
+  const hasPlanningRange = forecastRange.low.totals.cpdCostCents !== forecastRange.high.totals.cpdCostCents;
 
   return (
     <div className="mx-auto max-w-[1180px] animate-fade-in pb-8">
@@ -251,8 +286,8 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
               ariaLabel="Scenario"
               value={scenarioId ?? ''}
               options={[
-                { value: '', label: 'Main plan', description: 'Current staffing plan' },
-                ...year.scenarios.map((scenario) => ({ value: scenario.id, label: scenario.name, description: scenarioRoleDescriptions[scenario.role] })),
+                { value: '', label: 'Expected forecast', description: 'Schedules plus expected estimates' },
+                ...year.scenarios.filter((scenario) => scenario.role !== 'expected').map((scenario) => ({ value: scenario.id, label: scenario.name, description: scenarioRoleDescriptions[scenario.role] })),
               ]}
               onValueChange={(value) => onScenarioChange(value || null)}
               actionLabel="Add scenario"
@@ -280,12 +315,25 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
             </div>
           )}
 
+          {missingPeriods.length > 0 && (
+            <section className="mt-4 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3" aria-label="Incomplete forecast">
+              <div className="flex min-w-0 items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning-700 dark:text-warning-300" />
+                <div>
+                  <div className="text-[12px] font-semibold">Forecast incomplete</div>
+                  <div className="mt-0.5 text-[11px] text-muted-foreground">{missingPeriods.map((period) => period.name).join(', ')} {missingPeriods.length === 1 ? 'has' : 'have'} no schedule or staffing estimate. Missing periods are not counted as $0.</div>
+                </div>
+              </div>
+              <Button size="sm" onClick={onOpenForecasts}><GitBranch className="h-3.5 w-3.5" />Complete forecast</Button>
+            </section>
+          )}
+
           <section className="mt-5 overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="budget-status-heading">
             <div className="grid gap-6 px-5 py-5 lg:grid-cols-[minmax(280px,1.25fr)_minmax(420px,1fr)] lg:items-center">
               <div>
                 <div className="flex items-end justify-between gap-4">
                   <div>
-                    <h2 id="budget-status-heading" className="text-[12px] font-medium text-muted-foreground">Projected CPD cost</h2>
+                    <h2 id="budget-status-heading" className="text-[12px] font-medium text-muted-foreground">{forecast.complete ? 'Expected CPD cost' : 'Entered CPD projection'}</h2>
                     <div className={`mt-1 font-mono text-[30px] font-semibold tracking-tight tabular-nums ${overBudget ? 'text-destructive' : ''}`}>{formatCurrency(forecast.totals.cpdCostCents)}</div>
                   </div>
                   <div className="flex items-end gap-5">
@@ -301,7 +349,7 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
                       />
                     </Field>
                     <div className="pb-0.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground"><span>Remaining</span><span aria-hidden="true">·</span><span className={overallHealthPresentation.text}>{overallHealthPresentation.label}</span></div>
+                      <div className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground"><span>{forecast.complete ? 'Remaining' : 'Partial balance'}</span><span aria-hidden="true">·</span><span className={overallHealthPresentation.text}>{overallHealthPresentation.label}</span></div>
                       <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
                     </div>
                   </div>
@@ -311,13 +359,14 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
                 </div>
                 <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground"><span>{spendRatio.toFixed(1)}% used</span><span>{formatCurrency(year.budgetCents)} budget</span></div>
               </div>
-              <div className="grid grid-cols-3 gap-5 border-t border-border pt-5 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+              <div className="grid grid-cols-2 gap-5 border-t border-border pt-5 sm:grid-cols-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
                 <SummaryItem label="Gross wages" value={formatCurrency(forecast.totals.grossWagesCents)} icon={<CircleDollarSign className="h-3.5 w-3.5" />} />
                 <SummaryItem label="Work-study" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} />
+                <SummaryItem label="Planning range" value={hasPlanningRange ? `${formatCurrency(forecastRange.low.totals.cpdCostCents)}–${formatCurrency(forecastRange.high.totals.cpdCostCents)}` : 'Not set'} icon={<GitBranch className="h-3.5 w-3.5" />} />
                 <SummaryItem label="Hours" value={forecast.totals.hours.toFixed(1)} icon={<Clock3 className="h-3.5 w-3.5" />} />
               </div>
             </div>
-            <ForecastRunway year={year} asOfDate={asOfDate} />
+            <ForecastRunway year={year} forecast={forecast} />
           </section>
 
           {overBudget && <div className="mt-3 flex items-center gap-2 text-[12px] text-destructive"><AlertTriangle className="h-4 w-4" /><span>This plan is {formatCurrency(Math.abs(forecast.totals.remainingBudgetCents))} over budget.</span></div>}
@@ -334,7 +383,13 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
                 </tr></thead>
                 <tbody>{rows.map((row) => (
                   <tr key={row.weekStart} className={row.state === 'mixed' ? 'bg-warning-500/[0.07]' : 'hover:bg-surface-900/55'}>
-                    <td className="border-b border-border px-3 py-2 font-mono text-[11px]">{formatShortDate(row.weekStart)}–{formatShortDate(row.weekEnd)}</td><td className="border-b border-border px-3 py-2">{stateBadge(row)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.hours.toFixed(1)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{formatCurrencyPrecise(row.grossWagesCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{formatCurrencyPrecise(row.workStudyCoveredCents)}</td><td className="border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums">{formatCurrencyPrecise(row.cpdCostCents)}</td><td className={`border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums ${budgetHealthPresentation[budgetHealth(row.runningBalance, year.budgetCents)].text}`}>{formatCurrencyPrecise(row.runningBalance)}</td>
+                    <td className="border-b border-border px-3 py-2 font-mono text-[11px]">{formatShortDate(row.weekStart)}–{formatShortDate(row.weekEnd)}</td>
+                    <td className="border-b border-border px-3 py-2">{stateBadge(row)}</td>
+                    <td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.state === 'missing' ? '—' : row.hours.toFixed(1)}</td>
+                    <td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.state === 'missing' ? '—' : formatCurrencyPrecise(row.grossWagesCents)}</td>
+                    <td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.state === 'missing' ? '—' : formatCurrencyPrecise(row.workStudyCoveredCents)}</td>
+                    <td className="border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums">{row.state === 'missing' ? 'Not forecast' : formatCurrencyPrecise(row.cpdCostCents)}</td>
+                    <td className={`border-b border-border px-3 py-2 text-right font-mono font-medium tabular-nums ${row.incompleteToDate ? 'text-muted-foreground' : budgetHealthPresentation[budgetHealth(row.runningBalance, year.budgetCents)].text}`}>{row.incompleteToDate ? 'Incomplete' : formatCurrencyPrecise(row.runningBalance)}</td>
                   </tr>
                 ))}</tbody>
               </table>

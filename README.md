@@ -11,6 +11,9 @@ An offline desktop planning tool for Chapman University's Career and Professiona
 - Recurring fall and spring schedules
 - Week-specific summer and Interterm schedules
 - Scheduled hours are assumed worked until a day or week is corrected
+- Dated coverage states for assumed past, actual corrections, future schedules, estimates, and missing periods
+- Comparable-period estimates with editable lower, expected, and higher paid team hours
+- Missing periods make the annual forecast incomplete instead of silently implying zero staffing
 - Work-study and non-work-study cost tracking
 - Saved staffing scenarios
 - Readable JSON backup export and import
@@ -26,7 +29,7 @@ See [docs/specification-index.md](docs/specification-index.md) for the functiona
 
 ## Current status
 
-The first working vertical slice is implemented. It includes the secure Electron shell, encrypted local persistence, automatic local backups, portable export/import, the forecast engine, multi-year settings, workers, schedules, closures, hour corrections, scenarios, and a responsive light/dark interface. The core model is covered by automated tests.
+The first working vertical slice is implemented. It includes the secure Electron shell, encrypted local persistence, automatic local backups, portable export/import, the forecast engine, multi-year settings, workers, schedules, closures, hour corrections, comparable-period estimates, lower/expected/higher ranges, staffing scenarios, and a responsive light/dark interface. The core model is covered by automated tests.
 
 ## Run locally
 

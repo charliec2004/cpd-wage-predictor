@@ -2,16 +2,20 @@ import {
   isWorkStudyEligiblePeriod,
   type AcademicPeriod,
   type FiscalYear,
+  type ForecastEstimateVariant,
   type ForecastScenario,
   type HourAdjustment,
   type OfficeClosure,
   type PlannedHire,
+  type PeriodEstimate,
+  type PeriodEstimateProfile,
   type RecurringShift,
   type Worker,
 } from '../../../shared/workspace';
 import { addDays, clampDate, datesBetween, isWithin, mondayOfWeek, weekday } from './dates';
 
-export type LedgerState = 'assumed-worked' | 'corrected' | 'planned' | 'scenario';
+export type LedgerState = 'assumed-worked' | 'corrected' | 'scheduled' | 'estimated' | 'scenario';
+export type LedgerSourceKind = 'schedule' | 'estimate' | 'correction' | 'scenario' | 'none';
 
 export interface DailyLedgerRow {
   date: string;
@@ -25,12 +29,13 @@ export interface DailyLedgerRow {
   workStudyCoveredCents: number;
   cpdCostCents: number;
   source: string;
+  sourceKind: LedgerSourceKind;
 }
 
 export interface WeeklyForecastRow {
   weekStart: string;
   weekEnd: string;
-  state: 'assumed-worked' | 'mixed' | 'planned' | 'scenario';
+  state: 'assumed-worked' | 'corrected' | 'mixed' | 'scheduled' | 'estimated' | 'scenario' | 'missing';
   hours: number;
   grossWagesCents: number;
   outsideJobConsumptionCents: number;
@@ -38,9 +43,41 @@ export interface WeeklyForecastRow {
   cpdCostCents: number;
 }
 
+export interface PeriodForecastCoverage {
+  periodId: string;
+  name: string;
+  startDate: string;
+  endDate: string;
+  status: 'worked' | 'worked-and-scheduled' | 'scheduled' | 'estimated' | 'scheduled-and-estimated' | 'no-staffing' | 'missing';
+  sourceLabel: string;
+  lowWeeklyMinutes?: number;
+  expectedWeeklyMinutes?: number;
+  highWeeklyMinutes?: number;
+}
+
+export type ForecastCoverageSegmentState =
+  | 'assumed-worked'
+  | 'corrected'
+  | 'scheduled'
+  | 'estimated'
+  | 'assumed-and-estimated'
+  | 'scheduled-and-estimated'
+  | 'no-staffing'
+  | 'missing';
+
+export interface ForecastCoverageSegment {
+  periodId: string;
+  periodName: string;
+  startDate: string;
+  endDate: string;
+  state: ForecastCoverageSegmentState;
+  sourceLabel: string;
+}
+
 export interface ForecastResult {
   asOfDate: string;
   scenarioId: string | null;
+  estimateVariant: ForecastEstimateVariant;
   daily: DailyLedgerRow[];
   weekly: WeeklyForecastRow[];
   totals: {
@@ -50,7 +87,15 @@ export interface ForecastResult {
     workStudyCoveredCents: number;
     cpdCostCents: number;
     remainingBudgetCents: number;
+    assumedWorkedHours: number;
+    correctedHours: number;
+    scheduledHours: number;
+    estimatedHours: number;
+    scenarioHours: number;
   };
+  coverage: PeriodForecastCoverage[];
+  coverageSegments: ForecastCoverageSegment[];
+  complete: boolean;
   warnings: string[];
 }
 
@@ -59,6 +104,7 @@ interface DailyPlan {
   minutes: number;
   source: string;
   corrected: boolean;
+  sourceKind: LedgerSourceKind;
 }
 
 function periodForDate(year: FiscalYear, date: string): AcademicPeriod | undefined {
@@ -107,11 +153,79 @@ export function scheduledPayableMinutes(shifts: ShiftInterval[], closures: Offic
   return Math.max(0, workedBeforeAutomaticBreak - (workedBeforeAutomaticBreak > 300 && !includesThirtyMinuteGap ? 30 : 0));
 }
 
-function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string): { minutes: number; source: string } {
+function scheduleCoversDate(schedule: Worker['schedules'][number], date: string): boolean {
+  if (schedule.mode === 'recurring') {
+    return schedule.recurringShifts.length > 0 || Boolean(schedule.dayOverrides?.some((override) => override.date === date));
+  }
+  const weekStart = mondayOfWeek(date);
+  const weekEnd = addDays(weekStart, 6);
+  return schedule.datedShifts.some((shift) => shift.date >= weekStart && shift.date <= weekEnd) ||
+    Boolean(schedule.dayOverrides?.some((override) => override.date >= weekStart && override.date <= weekEnd));
+}
+
+function estimateScale(estimate: PeriodEstimate, variant: ForecastEstimateVariant): number {
+  const baseWeeklyMinutes = estimate.profiles.reduce(
+    (total, profile) => total + profile.weekdayMinutes.reduce((sum, minutes) => sum + minutes, 0),
+    0,
+  );
+  if (baseWeeklyMinutes === 0) return 0;
+  const target = variant === 'low'
+    ? estimate.lowWeeklyMinutes
+    : variant === 'high'
+      ? estimate.highWeeklyMinutes
+      : estimate.expectedWeeklyMinutes;
+  return target / baseWeeklyMinutes;
+}
+
+function estimatedMinutesForDate(
+  year: FiscalYear,
+  estimate: PeriodEstimate,
+  profile: PeriodEstimateProfile,
+  date: string,
+  variant: ForecastEstimateVariant,
+): number {
+  if (estimate.status === 'no-staffing') return 0;
+  const baseMinutes = profile.weekdayMinutes[weekday(date)] ?? 0;
+  if (baseMinutes === 0) return 0;
+  const closures = year.closures.filter((closure) => closure.date === date);
+  if (closures.some((closure) => closure.startMinute === undefined || closure.endMinute === undefined)) return 0;
+  const standardDay = [{ startMinute: 540, endMinute: 1_020 }];
+  const normalOfficeMinutes = scheduledPayableMinutes(standardDay);
+  const availableOfficeMinutes = closures.length > 0 ? scheduledPayableMinutes(standardDay, closures) : normalOfficeMinutes;
+  const closureRatio = normalOfficeMinutes > 0 ? availableOfficeMinutes / normalOfficeMinutes : 1;
+  return Math.max(0, Math.round(baseMinutes * estimateScale(estimate, variant) * closureRatio));
+}
+
+function estimateForWorker(year: FiscalYear, period: AcademicPeriod, worker: Worker): { estimate: PeriodEstimate; profile: PeriodEstimateProfile } | undefined {
+  const estimate = (year.periodEstimates ?? []).find((candidate) => candidate.periodId === period.id && candidate.status === 'estimated');
+  const profile = estimate?.profiles.find((candidate) => candidate.workerId === worker.id);
+  return estimate && profile ? { estimate, profile } : undefined;
+}
+
+function baselineMinutesForDate(
+  year: FiscalYear,
+  worker: Worker,
+  date: string,
+  variant: ForecastEstimateVariant,
+): { minutes: number; source: string; sourceKind: LedgerSourceKind } {
   const period = periodForDate(year, date);
-  if (!period) return { minutes: 0, source: 'No academic period' };
+  if (!period) return { minutes: 0, source: 'No academic period', sourceKind: 'none' };
   const schedule = worker.schedules.find((candidate) => candidate.periodId === period.id);
-  if (!schedule) return { minutes: 0, source: `No ${period.name} schedule` };
+  const estimateMatch = estimateForWorker(year, period, worker);
+  if (!schedule || !scheduleCoversDate(schedule, date)) {
+    if (estimateMatch) {
+      const closures = year.closures.some((closure) => closure.date === date);
+      return {
+        minutes: estimatedMinutesForDate(year, estimateMatch.estimate, estimateMatch.profile, date, variant),
+        source: `${period.name} estimate from ${estimateMatch.estimate.sourceLabel}${closures ? ', adjusted by closure' : ''}`,
+        sourceKind: 'estimate',
+      };
+    }
+    const explicitZero = (year.periodEstimates ?? []).find((candidate) => candidate.periodId === period.id && candidate.status === 'no-staffing');
+    return explicitZero
+      ? { minutes: 0, source: `${period.name}: no student staffing planned`, sourceKind: 'none' }
+      : { minutes: 0, source: `No ${period.name} schedule or estimate`, sourceKind: 'none' };
+  }
   const closures = year.closures.filter((closure) => closure.date === date);
   if (schedule.mode === 'recurring') {
     const dayOverride = schedule.dayOverrides?.find((override) => override.date === date);
@@ -123,12 +237,14 @@ function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string):
         : dayOverride
           ? `${period.name} day change`
           : `${period.name} recurring schedule`,
+      sourceKind: 'schedule',
     };
   }
   const shifts = schedule.datedShifts.filter((shift) => shift.date === date);
   return {
     minutes: scheduledPayableMinutes(shifts, closures),
     source: closures.length > 0 ? `${period.name} weekly plan, clipped by closure` : `${period.name} weekly plan`,
+    sourceKind: 'schedule',
   };
 }
 
@@ -152,20 +268,28 @@ function distributeWeeklyAdjustment(plans: Map<string, DailyPlan>, adjustment: H
       minutes,
       source: `Weekly correction: ${adjustment.note || 'manually replaced total'}`,
       corrected: true,
+      sourceKind: 'correction',
     });
   });
   dates.filter((date) => !eligibleDates.includes(date)).forEach((date) => {
-    plans.set(date, { date, minutes: 0, source: 'Weekly correction', corrected: true });
+    plans.set(date, { date, minutes: 0, source: 'Weekly correction', corrected: true, sourceKind: 'correction' });
   });
 }
 
-function buildWorkerPlans(year: FiscalYear, worker: Worker, activeEnd: string | undefined): Map<string, DailyPlan> {
+function buildWorkerPlans(
+  year: FiscalYear,
+  worker: Worker,
+  activeEnd: string | undefined,
+  variant: ForecastEstimateVariant,
+): Map<string, DailyPlan> {
   const plans = new Map<string, DailyPlan>();
   for (const date of datesBetween(year.startDate, year.endDate)) {
     const resolvedEnd = activeEnd && worker.activeEnd ? (activeEnd < worker.activeEnd ? activeEnd : worker.activeEnd) : activeEnd ?? worker.activeEnd;
     const statusEligible = worker.status === 'active' || worker.status === 'planned' || (worker.status === 'ended' && Boolean(resolvedEnd));
     const active = statusEligible && isWithin(date, worker.activeStart, resolvedEnd);
-    const baseline = active ? baselineMinutesForDate(year, worker, date) : { minutes: 0, source: 'Outside active employment dates' };
+    const baseline = active
+      ? baselineMinutesForDate(year, worker, date, variant)
+      : { minutes: 0, source: 'Outside active employment dates', sourceKind: 'none' as const };
     plans.set(date, { date, ...baseline, corrected: false });
   }
   const adjustments = year.adjustments.filter((adjustment) => adjustment.workerId === worker.id);
@@ -177,6 +301,7 @@ function buildWorkerPlans(year: FiscalYear, worker: Worker, activeEnd: string | 
       minutes: adjustment.minutes,
       source: `Daily correction: ${adjustment.note || 'manually replaced hours'}`,
       corrected: true,
+      sourceKind: 'correction',
     });
   });
   return plans;
@@ -201,8 +326,9 @@ function calculateWorkerRows(
   worker: Worker,
   asOfDate: string,
   scenario: ForecastScenario | undefined,
+  variant: ForecastEstimateVariant,
 ): DailyLedgerRow[] {
-  const plans = buildWorkerPlans(year, worker, departureForWorker(scenario, worker));
+  const plans = buildWorkerPlans(year, worker, departureForWorker(scenario, worker), variant);
   const rows: DailyLedgerRow[] = [];
   let remainingAward = worker.workStudy?.awardCents ?? 0;
   for (const date of datesBetween(year.startDate, year.endDate)) {
@@ -220,13 +346,20 @@ function calculateWorkerRows(
       weekStart: mondayOfWeek(date),
       workerId: worker.id,
       workerName: worker.name,
-      state: plan.corrected ? 'corrected' : date <= asOfDate ? 'assumed-worked' : 'planned',
+      state: plan.corrected
+        ? 'corrected'
+        : plan.sourceKind === 'estimate'
+          ? 'estimated'
+          : date <= asOfDate
+            ? 'assumed-worked'
+            : 'scheduled',
       minutes: plan.minutes,
       grossWagesCents: gross,
       outsideJobConsumptionCents: outsideConsumption,
       workStudyCoveredCents: covered,
       cpdCostCents: gross - covered,
       source: plan.source,
+      sourceKind: plan.sourceKind,
     });
     if (worker.workStudy?.officialBalance?.asOfDate === date) {
       remainingAward = worker.workStudy.officialBalance.remainingCents;
@@ -261,26 +394,204 @@ function calculatePlannedHireRows(year: FiscalYear, hire: PlannedHire, asOfDate:
       workStudyCoveredCents: covered,
       cpdCostCents: gross - covered,
       source: fullClosure ? 'Scenario hire, suppressed by closure' : 'Scenario planned hire',
+      sourceKind: 'scenario',
     });
   }
   return rows;
 }
 
-export function calculateForecast(year: FiscalYear, requestedAsOfDate: string, scenarioId: string | null = null): ForecastResult {
+function calculateSyntheticEstimateRows(
+  year: FiscalYear,
+  estimate: PeriodEstimate,
+  profile: PeriodEstimateProfile,
+  variant: ForecastEstimateVariant,
+): DailyLedgerRow[] {
+  const period = year.periods.find((candidate) => candidate.id === estimate.periodId);
+  if (!period || estimate.status !== 'estimated') return [];
+  const rows: DailyLedgerRow[] = [];
+  let remainingAward = profile.workStudyAwardCents ?? 0;
+  for (const date of datesBetween(period.startDate, period.endDate)) {
+    const minutes = estimatedMinutesForDate(year, estimate, profile, date, variant);
+    const gross = Math.round((minutes * profile.hourlyRateCents) / 60);
+    const covered = isWorkStudyEligiblePeriod(period) ? Math.min(gross, remainingAward) : 0;
+    remainingAward -= covered;
+    rows.push({
+      date,
+      weekStart: mondayOfWeek(date),
+      workerId: profile.id,
+      workerName: profile.label,
+      state: 'estimated',
+      minutes,
+      grossWagesCents: gross,
+      outsideJobConsumptionCents: 0,
+      workStudyCoveredCents: covered,
+      cpdCostCents: gross - covered,
+      source: `${period.name} estimate from ${estimate.sourceLabel}`,
+      sourceKind: 'estimate',
+    });
+  }
+  return rows;
+}
+
+function daysInclusive(startDate: string, endDate: string): number {
+  return Math.max(0, Math.floor((new Date(`${endDate}T00:00:00Z`).getTime() - new Date(`${startDate}T00:00:00Z`).getTime()) / 86_400_000) + 1);
+}
+
+function dateHasExactSchedule(year: FiscalYear, period: AcademicPeriod, date: string): boolean {
+  return year.workers.some((worker) => {
+    if (worker.activeStart > date || (worker.activeEnd && worker.activeEnd < date)) return false;
+    const schedule = worker.schedules.find((candidate) => candidate.periodId === period.id);
+    return Boolean(schedule && scheduleCoversDate(schedule, date));
+  });
+}
+
+function dateHasEstimateRemainder(year: FiscalYear, period: AcademicPeriod, estimate: PeriodEstimate | undefined, date: string): boolean {
+  if (!estimate || estimate.status !== 'estimated') return false;
+  return estimate.profiles.some((profile) => {
+    if (!profile.workerId) return true;
+    const worker = year.workers.find((candidate) => candidate.id === profile.workerId);
+    if (!worker || worker.activeStart > date || (worker.activeEnd && worker.activeEnd < date)) return false;
+    const schedule = worker.schedules.find((candidate) => candidate.periodId === period.id);
+    return !schedule || !scheduleCoversDate(schedule, date);
+  });
+}
+
+function dateHasCorrection(year: FiscalYear, date: string): boolean {
+  return year.adjustments.some((adjustment) => adjustment.scope === 'day'
+    ? adjustment.date === date
+    : mondayOfWeek(adjustment.date) === mondayOfWeek(date));
+}
+
+const coverageSegmentLabels: Record<ForecastCoverageSegmentState, string> = {
+  'assumed-worked': 'Past schedule is assumed worked; payroll is not independently confirmed',
+  corrected: 'Past hours include a manual actual-hours correction',
+  scheduled: 'Future exact shifts are known but not yet worked',
+  estimated: 'Hours are predicted from a saved staffing estimate',
+  'assumed-and-estimated': 'Past hours combine assumed schedules with an estimate',
+  'scheduled-and-estimated': 'Future exact shifts and estimated staffing are combined',
+  'no-staffing': 'Explicitly no student staffing planned',
+  missing: 'Future staffing is unknown and contributes no assumed dollars',
+};
+
+export function assessForecastCoverageSegments(year: FiscalYear, asOfDate: string): ForecastCoverageSegment[] {
+  const segments: ForecastCoverageSegment[] = [];
+  for (const period of year.periods.filter((candidate) => daysInclusive(candidate.startDate, candidate.endDate) >= 7)) {
+    const estimate = (year.periodEstimates ?? []).find((candidate) => candidate.periodId === period.id);
+    for (const date of datesBetween(period.startDate, period.endDate)) {
+      const exact = dateHasExactSchedule(year, period, date);
+      const estimated = dateHasEstimateRemainder(year, period, estimate, date);
+      const past = date <= asOfDate;
+      const corrected = past && dateHasCorrection(year, date);
+      let state: ForecastCoverageSegmentState;
+      if (corrected) state = 'corrected';
+      else if (exact && estimated) state = past ? 'assumed-and-estimated' : 'scheduled-and-estimated';
+      else if (exact) state = past ? 'assumed-worked' : 'scheduled';
+      else if (estimated) state = 'estimated';
+      else if (estimate?.status === 'no-staffing') state = 'no-staffing';
+      else state = 'missing';
+      const previous = segments.at(-1);
+      if (previous && previous.periodId === period.id && previous.state === state && addDays(previous.endDate, 1) === date) {
+        previous.endDate = date;
+      } else {
+        segments.push({
+          periodId: period.id,
+          periodName: period.name,
+          startDate: date,
+          endDate: date,
+          state,
+          sourceLabel: coverageSegmentLabels[state],
+        });
+      }
+    }
+  }
+  return segments;
+}
+
+export function assessForecastCoverage(year: FiscalYear, asOfDate: string): PeriodForecastCoverage[] {
+  const segments = assessForecastCoverageSegments(year, asOfDate);
+  return year.periods
+    .filter((period) => daysInclusive(period.startDate, period.endDate) >= 7)
+    .map((period) => {
+      const estimate = (year.periodEstimates ?? []).find((candidate) => candidate.periodId === period.id);
+      const periodSegments = segments.filter((segment) => segment.periodId === period.id);
+      const states = new Set(periodSegments.map((segment) => segment.state));
+      const hasMissing = states.has('missing');
+      const hasEstimate = states.has('estimated') || states.has('assumed-and-estimated') || states.has('scheduled-and-estimated');
+      const hasPastExact = states.has('assumed-worked') || states.has('corrected') || states.has('assumed-and-estimated');
+      const hasFutureExact = states.has('scheduled') || states.has('scheduled-and-estimated');
+      const onlyNoStaffing = states.size === 1 && states.has('no-staffing');
+      let status: PeriodForecastCoverage['status'];
+      let sourceLabel: string;
+      if (hasMissing) {
+        status = 'missing';
+        sourceLabel = periodSegments.some((segment) => segment.state !== 'missing')
+          ? 'Part of this period has no schedule or staffing estimate'
+          : 'No schedule or staffing estimate';
+      } else if (onlyNoStaffing) {
+        status = 'no-staffing';
+        sourceLabel = estimate?.sourceLabel ?? 'No student staffing planned';
+      } else if (hasEstimate && (hasPastExact || hasFutureExact)) {
+        status = 'scheduled-and-estimated';
+        sourceLabel = `Exact schedules replace ${estimate?.sourceLabel ?? 'the estimate'} where entered`;
+      } else if (hasEstimate) {
+        status = 'estimated';
+        sourceLabel = estimate?.sourceLabel ?? 'Saved staffing estimate';
+      } else if (hasPastExact && hasFutureExact) {
+        status = 'worked-and-scheduled';
+        sourceLabel = 'Schedule before today is assumed worked; future shifts are scheduled';
+      } else if (hasPastExact) {
+        status = 'worked';
+        sourceLabel = states.has('corrected') ? 'Past schedule with actual-hours corrections' : 'Schedule is assumed worked unless corrected';
+      } else if (hasFutureExact) {
+        status = 'scheduled';
+        sourceLabel = 'Exact worker schedules';
+      } else {
+        status = 'missing';
+        sourceLabel = 'No schedule or staffing estimate';
+      }
+      return {
+        periodId: period.id,
+        name: period.name,
+        startDate: period.startDate,
+        endDate: period.endDate,
+        status,
+        sourceLabel,
+        lowWeeklyMinutes: estimate?.lowWeeklyMinutes,
+        expectedWeeklyMinutes: estimate?.expectedWeeklyMinutes,
+        highWeeklyMinutes: estimate?.highWeeklyMinutes,
+      };
+    });
+}
+
+export function calculateForecast(
+  year: FiscalYear,
+  requestedAsOfDate: string,
+  scenarioId: string | null = null,
+  estimateVariant: ForecastEstimateVariant = 'expected',
+): ForecastResult {
   const asOfDate = clampDate(requestedAsOfDate, year.startDate, year.endDate);
   const scenario = scenarioId ? year.scenarios.find((candidate) => candidate.id === scenarioId) : undefined;
   const warnings: string[] = [];
-  const daily = year.workers.flatMap((worker) => calculateWorkerRows(year, worker, asOfDate, scenario));
+  const daily = year.workers.flatMap((worker) => calculateWorkerRows(year, worker, asOfDate, scenario, estimateVariant));
+  const workerIds = new Set(year.workers.map((worker) => worker.id));
+  daily.push(...(year.periodEstimates ?? []).flatMap((estimate) => estimate.profiles
+    .filter((profile) => !profile.workerId || !workerIds.has(profile.workerId))
+    .flatMap((profile) => calculateSyntheticEstimateRows(year, estimate, profile, estimateVariant))));
   if (scenario) daily.push(...scenario.plannedHires.flatMap((hire) => calculatePlannedHireRows(year, hire, asOfDate)));
   if (year.budgetCents === 0) warnings.push('Enter the fiscal-year budget to calculate remaining headroom.');
   if (year.workers.length === 0) warnings.push('Add at least one worker to create a staffing forecast.');
+  const coverage = assessForecastCoverage(year, asOfDate);
+  const coverageSegments = assessForecastCoverageSegments(year, asOfDate);
+  const missingPeriods = coverage.filter((period) => period.status === 'missing');
+  missingPeriods.forEach((period) => warnings.push(`${period.name} has no schedule or staffing estimate.`));
 
   const weeklyMap = new Map<string, WeeklyForecastRow>();
+  const weeklySources = new Map<string, Set<LedgerSourceKind>>();
   daily.forEach((row) => {
     const current = weeklyMap.get(row.weekStart) ?? {
       weekStart: row.weekStart,
       weekEnd: addDays(row.weekStart, 6),
-      state: row.state === 'scenario' ? 'scenario' : row.date <= asOfDate ? 'assumed-worked' : 'planned',
+      state: row.state === 'scenario' ? 'scenario' : row.state === 'estimated' ? 'estimated' : row.date <= asOfDate ? 'assumed-worked' : 'scheduled',
       hours: 0,
       grossWagesCents: 0,
       outsideJobConsumptionCents: 0,
@@ -292,13 +603,24 @@ export function calculateForecast(year: FiscalYear, requestedAsOfDate: string, s
     current.outsideJobConsumptionCents += row.outsideJobConsumptionCents;
     current.workStudyCoveredCents += row.workStudyCoveredCents;
     current.cpdCostCents += row.cpdCostCents;
-    if (current.state !== 'scenario') {
-      const crossesSeam = current.weekStart <= asOfDate && current.weekEnd > asOfDate;
-      current.state = crossesSeam ? 'mixed' : current.weekEnd <= asOfDate ? 'assumed-worked' : 'planned';
-    }
+    const sources = weeklySources.get(row.weekStart) ?? new Set<LedgerSourceKind>();
+    if (row.minutes > 0 || row.sourceKind === 'correction') sources.add(row.sourceKind);
+    weeklySources.set(row.weekStart, sources);
     weeklyMap.set(row.weekStart, current);
   });
-  const weekly = Array.from(weeklyMap.values()).sort((a, b) => a.weekStart.localeCompare(b.weekStart));
+  const weekly = Array.from(weeklyMap.values())
+    .map((week) => {
+      const sources = weeklySources.get(week.weekStart) ?? new Set<LedgerSourceKind>();
+      const crossesSeam = week.weekStart <= asOfDate && week.weekEnd > asOfDate;
+      const missing = missingPeriods.some((period) => period.startDate <= week.weekEnd && period.endDate >= week.weekStart);
+      if (sources.has('scenario')) week.state = 'scenario';
+      else if (sources.has('correction')) week.state = 'corrected';
+      else if (sources.has('estimate')) week.state = 'estimated';
+      else if (missing && week.hours === 0) week.state = 'missing';
+      else week.state = crossesSeam ? 'mixed' : week.weekEnd <= asOfDate ? 'assumed-worked' : 'scheduled';
+      return week;
+    })
+    .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
   const totals = daily.reduce(
     (result, row) => {
       result.hours += row.minutes / 60;
@@ -306,16 +628,58 @@ export function calculateForecast(year: FiscalYear, requestedAsOfDate: string, s
       result.outsideJobConsumptionCents += row.outsideJobConsumptionCents;
       result.workStudyCoveredCents += row.workStudyCoveredCents;
       result.cpdCostCents += row.cpdCostCents;
+      if (row.sourceKind === 'estimate') result.estimatedHours += row.minutes / 60;
+      else if (row.sourceKind === 'correction') result.correctedHours += row.minutes / 60;
+      else if (row.sourceKind === 'scenario') result.scenarioHours += row.minutes / 60;
+      else if (row.date <= asOfDate) result.assumedWorkedHours += row.minutes / 60;
+      else result.scheduledHours += row.minutes / 60;
       return result;
     },
-    { hours: 0, grossWagesCents: 0, outsideJobConsumptionCents: 0, workStudyCoveredCents: 0, cpdCostCents: 0 },
+    {
+      hours: 0,
+      grossWagesCents: 0,
+      outsideJobConsumptionCents: 0,
+      workStudyCoveredCents: 0,
+      cpdCostCents: 0,
+      assumedWorkedHours: 0,
+      correctedHours: 0,
+      scheduledHours: 0,
+      estimatedHours: 0,
+      scenarioHours: 0,
+    },
   );
   return {
     asOfDate,
     scenarioId: scenario?.id ?? null,
+    estimateVariant,
     daily,
     weekly,
     totals: { ...totals, remainingBudgetCents: year.budgetCents - totals.cpdCostCents },
+    coverage,
+    coverageSegments,
+    complete: missingPeriods.length === 0,
     warnings,
+  };
+}
+
+export interface ForecastRange {
+  low: ForecastResult;
+  expected: ForecastResult;
+  high: ForecastResult;
+  inverted: boolean;
+}
+
+export function calculateForecastRange(year: FiscalYear, requestedAsOfDate: string): ForecastRange {
+  const lowScenario = year.scenarios.find((scenario) => scenario.role === 'plausible-low');
+  const expectedScenario = year.scenarios.find((scenario) => scenario.role === 'expected');
+  const highScenario = year.scenarios.find((scenario) => scenario.role === 'prudent-high');
+  const low = calculateForecast(year, requestedAsOfDate, lowScenario?.id ?? null, 'low');
+  const expected = calculateForecast(year, requestedAsOfDate, expectedScenario?.id ?? null, 'expected');
+  const high = calculateForecast(year, requestedAsOfDate, highScenario?.id ?? null, 'high');
+  return {
+    low,
+    expected,
+    high,
+    inverted: low.totals.cpdCostCents > expected.totals.cpdCostCents || expected.totals.cpdCostCents > high.totals.cpdCostCents,
   };
 }
