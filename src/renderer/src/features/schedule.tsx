@@ -28,6 +28,7 @@ import { DatePicker } from '../../components/ui/date-picker';
 import { DialogShell } from '../../components/ui/dialog-shell';
 import { Input } from '../../components/ui/input';
 import { NoticePanel } from '../../components/ui/notice-panel';
+import { TimePicker } from '../../components/ui/time-picker';
 import { Field, Select } from '../components/form-controls';
 import { calculateForecast, scheduledPayableMinutes } from '../domain/forecast';
 import {
@@ -41,7 +42,7 @@ import {
   todayInLosAngeles,
   weekday,
 } from '../domain/dates';
-import { formatCurrency, minutesToTime, timeToMinutes } from '../lib/format';
+import { formatCurrency, formatTime12Hour } from '../lib/format';
 
 interface ScheduleProps {
   year: FiscalYear;
@@ -56,8 +57,8 @@ type ScheduleView = 'week' | 'repeating' | 'calendar';
 
 interface ShiftDraft {
   id: string;
-  start: string;
-  end: string;
+  startMinute: number;
+  endMinute: number;
 }
 
 interface DayEditDraft {
@@ -117,11 +118,11 @@ function shiftsForDate(worker: Worker, period: AcademicPeriod, date: string): Da
 }
 
 function shiftDrafts(shifts: DatedShift[]): ShiftDraft[] {
-  return shifts.map((shift) => ({ id: shift.id, start: minutesToTime(shift.startMinute), end: minutesToTime(shift.endMinute) }));
+  return shifts.map((shift) => ({ id: shift.id, startMinute: shift.startMinute, endMinute: shift.endMinute }));
 }
 
 function validShiftDrafts(shifts: ShiftDraft[]): boolean {
-  return shifts.every((shift) => timeToMinutes(shift.end) > timeToMinutes(shift.start));
+  return shifts.every((shift) => shift.endMinute > shift.startMinute);
 }
 
 function WeekSummary({ label, value }: { label: string; value: string }) {
@@ -142,7 +143,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
   const [periodId, setPeriodId] = React.useState(recurringPeriods[0]?.id ?? year.periods[0]?.id ?? '');
   const [dayEdit, setDayEdit] = React.useState<DayEditDraft | null>(null);
   const [dayValidation, setDayValidation] = React.useState<string | null>(null);
-  const [closureDraft, setClosureDraft] = React.useState({ name: '', date: '', partial: false, start: '15:00', end: '23:59' });
+  const [closureDraft, setClosureDraft] = React.useState({ name: '', date: '', partial: false, startMinute: 900, endMinute: 1439 });
 
   const weekDates = React.useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(weekStart, index)), [weekStart]);
   const weekEnd = weekDates[6] ?? weekStart;
@@ -218,8 +219,8 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
     const shifts: DatedShift[] = dayEdit.shifts.map((shift) => ({
       id: shift.id || `dated-${crypto.randomUUID()}`,
       date: dayEdit.date,
-      startMinute: timeToMinutes(shift.start),
-      endMinute: timeToMinutes(shift.end),
+      startMinute: shift.startMinute,
+      endMinute: shift.endMinute,
     }));
     if (targetSchedule.mode === 'recurring') {
       const override: ScheduleDayOverride = { id: `day-${crypto.randomUUID()}`, date: dayEdit.date, shifts };
@@ -265,11 +266,11 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
       name: closureDraft.name.trim(),
       date: closureDraft.date,
       ...(closureDraft.partial
-        ? { startMinute: timeToMinutes(closureDraft.start), endMinute: timeToMinutes(closureDraft.end) }
+        ? { startMinute: closureDraft.startMinute, endMinute: closureDraft.endMinute }
         : {}),
     };
     onClosuresChange([...year.closures, closure]);
-    setClosureDraft({ name: '', date: '', partial: false, start: '15:00', end: '23:59' });
+    setClosureDraft({ name: '', date: '', partial: false, startMinute: 900, endMinute: 1439 });
   };
 
   const changePeriodBoundary = (index: number, edge: 'start' | 'end', value: string) => {
@@ -390,7 +391,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                           onClick={() => openDayEditor(item, date)}
                           className="group border-l border-border px-3 py-3 text-left transition-colors hover:bg-accent focus-visible:bg-accent disabled:cursor-default disabled:opacity-35"
                         >
-                          {shifts.length > 0 ? shifts.map((shift) => <div key={shift.id} className="font-mono text-[10px] font-medium">{minutesToTime(shift.startMinute)}–{minutesToTime(shift.endMinute)}</div>) : <div className="text-[11px] text-muted-foreground">No shift</div>}
+                          {shifts.length > 0 ? shifts.map((shift) => <div key={shift.id} className="font-mono text-[10px] font-medium">{formatTime12Hour(shift.startMinute)}–{formatTime12Hour(shift.endMinute)}</div>) : <div className="text-[11px] text-muted-foreground">No shift</div>}
                           <div className="mt-2 flex items-center justify-between gap-2">
                             <span className="font-mono text-[10px] text-muted-foreground">{row && row.minutes > 0 ? `${(row.minutes / 60).toFixed(1)}h` : '—'}</span>
                             {(changedDay || corrected) && <span className="text-[9px] font-medium text-[hsl(var(--success-accent))]">{corrected ? 'Corrected' : 'Changed'}</span>}
@@ -425,8 +426,8 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                 return (
                   <div key={day.value} className="grid grid-cols-[minmax(140px,1fr)_160px_160px_90px] items-center border-b border-border px-4 py-2.5 last:border-b-0">
                     <div className="flex items-center gap-2"><Checkbox id={checkboxId} checked={Boolean(shift)} onCheckedChange={(checked) => setRecurringDay(day.value, checked === true)} /><label htmlFor={checkboxId} className={`text-[13px] ${shift ? 'font-medium' : 'text-muted-foreground'}`}>{day.label}</label></div>
-                    <Input aria-label={`${day.label} start time`} type="time" disabled={!shift} value={shift ? minutesToTime(shift.startMinute) : '09:00'} onChange={(event) => shift && setRecurringDay(day.value, true, timeToMinutes(event.target.value), shift.endMinute)} />
-                    <Input aria-label={`${day.label} end time`} type="time" disabled={!shift} value={shift ? minutesToTime(shift.endMinute) : '12:00'} onChange={(event) => shift && timeToMinutes(event.target.value) > shift.startMinute && setRecurringDay(day.value, true, shift.startMinute, timeToMinutes(event.target.value))} />
+                    <TimePicker aria-label={`${day.label} start time`} disabled={!shift} value={shift?.startMinute ?? 540} onValueChange={(value) => shift && value < shift.endMinute && setRecurringDay(day.value, true, value, shift.endMinute)} />
+                    <TimePicker aria-label={`${day.label} end time`} disabled={!shift} value={shift?.endMinute ?? 720} onValueChange={(value) => shift && value > shift.startMinute && setRecurringDay(day.value, true, shift.startMinute, value)} />
                     <span className="text-right font-mono text-[12px] text-muted-foreground">{shift ? `${(scheduledPayableMinutes([shift]) / 60).toFixed(1)} paid` : '—'}</span>
                   </div>
                 );
@@ -480,12 +481,12 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                 <Field label="Closure name"><Input placeholder="Office closed" value={closureDraft.name} onChange={(event) => setClosureDraft({ ...closureDraft, name: event.target.value })} /></Field>
                 <Field label="Date"><DatePicker required min={year.startDate} max={year.endDate} value={closureDraft.date} onChange={(value) => setClosureDraft({ ...closureDraft, date: value })} aria-label="Closure date" /></Field>
                 <div className="flex items-center gap-2"><Checkbox id="partial-closure" checked={closureDraft.partial} onCheckedChange={(checked) => setClosureDraft({ ...closureDraft, partial: checked === true })} /><label htmlFor="partial-closure" className="text-[12px] font-medium">Early or partial closure</label></div>
-                {closureDraft.partial && <div className="grid grid-cols-2 gap-3"><Field label="Closed from"><Input type="time" value={closureDraft.start} onChange={(event) => setClosureDraft({ ...closureDraft, start: event.target.value })} /></Field><Field label="Closed until"><Input type="time" value={closureDraft.end} onChange={(event) => setClosureDraft({ ...closureDraft, end: event.target.value })} /></Field></div>}
+                {closureDraft.partial && <div className="grid grid-cols-2 gap-3"><Field label="Closed from"><TimePicker aria-label="Closure start time" value={closureDraft.startMinute} onValueChange={(value) => setClosureDraft({ ...closureDraft, startMinute: value })} /></Field><Field label="Closed until"><TimePicker aria-label="Closure end time" value={closureDraft.endMinute} onValueChange={(value) => setClosureDraft({ ...closureDraft, endMinute: value })} /></Field></div>}
                 <Button className="w-full" variant="outline" onClick={addClosure}><Plus className="h-4 w-4" />Add closure</Button>
               </div>
               <div className="max-h-72 overflow-y-auto">
               {year.closures.slice().sort((a, b) => a.date.localeCompare(b.date)).map((closure) => (
-                <div key={closure.id} className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"><Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="truncate text-[12px] font-medium">{closure.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{formatLongDate(closure.date)}{closure.startMinute !== undefined ? ` · ${minutesToTime(closure.startMinute)}–${minutesToTime(closure.endMinute ?? 1440)}` : ' · all day'}</div></div><Button variant="ghost" size="icon-sm" aria-label={`Remove ${closure.name}`} onClick={() => onClosuresChange(year.closures.filter((candidate) => candidate.id !== closure.id))}><Trash2 className="h-3.5 w-3.5" /></Button></div>
+                <div key={closure.id} className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"><Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="truncate text-[12px] font-medium">{closure.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{formatLongDate(closure.date)}{closure.startMinute !== undefined ? ` · ${formatTime12Hour(closure.startMinute)}–${formatTime12Hour(closure.endMinute ?? 1440)}` : ' · all day'}</div></div><Button variant="ghost" size="icon-sm" aria-label={`Remove ${closure.name}`} onClick={() => onClosuresChange(year.closures.filter((candidate) => candidate.id !== closure.id))}><Trash2 className="h-3.5 w-3.5" /></Button></div>
               ))}
               </div>
             </div>
@@ -524,15 +525,15 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             <div className="space-y-2">
               {dayEdit.shifts.map((shift, index) => (
                 <div key={shift.id} className="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
-                  <Field label={index === 0 ? 'Starts' : undefined}><Input type="time" value={shift.start} onChange={(event) => setDayEdit({ ...dayEdit, shifts: dayEdit.shifts.map((candidate) => candidate.id === shift.id ? { ...candidate, start: event.target.value } : candidate) })} /></Field>
-                  <Field label={index === 0 ? 'Ends' : undefined}><Input type="time" value={shift.end} onChange={(event) => setDayEdit({ ...dayEdit, shifts: dayEdit.shifts.map((candidate) => candidate.id === shift.id ? { ...candidate, end: event.target.value } : candidate) })} /></Field>
+                  <Field label={index === 0 ? 'Starts' : undefined}><TimePicker aria-label={`Shift ${index + 1} start time`} value={shift.startMinute} onValueChange={(value) => setDayEdit({ ...dayEdit, shifts: dayEdit.shifts.map((candidate) => candidate.id === shift.id ? { ...candidate, startMinute: value } : candidate) })} /></Field>
+                  <Field label={index === 0 ? 'Ends' : undefined}><TimePicker aria-label={`Shift ${index + 1} end time`} value={shift.endMinute} onValueChange={(value) => setDayEdit({ ...dayEdit, shifts: dayEdit.shifts.map((candidate) => candidate.id === shift.id ? { ...candidate, endMinute: value } : candidate) })} /></Field>
                   <Button variant="ghost" size="icon-sm" aria-label="Remove shift" onClick={() => setDayEdit({ ...dayEdit, shifts: dayEdit.shifts.filter((candidate) => candidate.id !== shift.id) })}><Trash2 className="h-3.5 w-3.5" /></Button>
                 </div>
               ))}
               {dayEdit.shifts.length === 0 && <div className="rounded-md border border-dashed border-border px-3 py-6 text-center text-[11px] text-muted-foreground">No work scheduled for this date.</div>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setDayEdit({ ...dayEdit, shifts: [...dayEdit.shifts, { id: `draft-${crypto.randomUUID()}`, start: '09:00', end: '12:00' }] })}><Plus className="h-3.5 w-3.5" />Add shift</Button>
+              <Button variant="outline" size="sm" onClick={() => setDayEdit({ ...dayEdit, shifts: [...dayEdit.shifts, { id: `draft-${crypto.randomUUID()}`, startMinute: 540, endMinute: 720 }] })}><Plus className="h-3.5 w-3.5" />Add shift</Button>
               {dayEditPeriod?.scheduleMode === 'recurring' && dayEdit.hasExistingOverride && <Button variant="ghost" size="sm" onClick={restoreRepeatingDay}><RotateCcw className="h-3.5 w-3.5" />Use repeating schedule</Button>}
             </div>
             {dayValidation && <p className="text-[12px] text-destructive">{dayValidation}</p>}

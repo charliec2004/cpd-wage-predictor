@@ -29,3 +29,11 @@ export function timeToMinutes(value: string): number {
 export function minutesToTime(value: number): string {
   return `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`;
 }
+
+export function formatTime12Hour(value: number): string {
+  const normalized = ((Math.round(value) % 1440) + 1440) % 1440;
+  const hour24 = Math.floor(normalized / 60);
+  const hour = hour24 % 12 || 12;
+  const minute = String(normalized % 60).padStart(2, '0');
+  return `${hour}:${minute} ${hour24 >= 12 ? 'PM' : 'AM'}`;
+}
