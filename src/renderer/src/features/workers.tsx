@@ -26,6 +26,7 @@ interface WorkerDraft {
   hourlyRate: string;
   hasWorkStudy: boolean;
   award: string;
+  hasOfficialBalance: boolean;
   officialBalance: string;
   officialBalanceDate: string;
   hasOutsideJob: boolean;
@@ -44,6 +45,7 @@ function blankDraft(year: FiscalYear): WorkerDraft {
     hourlyRate: '16.90',
     hasWorkStudy: true,
     award: '3000',
+    hasOfficialBalance: false,
     officialBalance: '',
     officialBalanceDate: '',
     hasOutsideJob: false,
@@ -65,6 +67,7 @@ function draftFromWorker(worker: Worker): WorkerDraft {
     hourlyRate: (worker.hourlyRateCents / 100).toFixed(2),
     hasWorkStudy: Boolean(worker.workStudy),
     award: String((worker.workStudy?.awardCents ?? 300_000) / 100),
+    hasOfficialBalance: Boolean(worker.workStudy?.officialBalance),
     officialBalance: worker.workStudy?.officialBalance ? String(worker.workStudy.officialBalance.remainingCents / 100) : '',
     officialBalanceDate: worker.workStudy?.officialBalance?.asOfDate ?? '',
     hasOutsideJob: Boolean(outside),
@@ -80,7 +83,8 @@ function workerFromDraft(draft: WorkerDraft, previous?: Worker): Worker | null {
   const awardCents = parseDollarInput(draft.award);
   const outsideWageCents = parseDollarInput(draft.outsideJobWage);
   if (!draft.name.trim() || !hourlyRateCents || (draft.hasWorkStudy && awardCents === null)) return null;
-  const officialCents = draft.officialBalance ? parseDollarInput(draft.officialBalance) : null;
+  const officialCents = draft.hasOfficialBalance ? parseDollarInput(draft.officialBalance) : null;
+  if (draft.hasOfficialBalance && (officialCents === null || !draft.officialBalanceDate)) return null;
   return {
     id: previous?.id ?? `worker-${crypto.randomUUID()}`,
     name: draft.name.trim(),
@@ -92,7 +96,7 @@ function workerFromDraft(draft: WorkerDraft, previous?: Worker): Worker | null {
       ? {
           awardCents: awardCents ?? 300_000,
           officialBalance:
-            officialCents !== null && draft.officialBalanceDate
+            draft.hasOfficialBalance && officialCents !== null && draft.officialBalanceDate
               ? { remainingCents: officialCents, asOfDate: draft.officialBalanceDate }
               : undefined,
         }
@@ -130,6 +134,10 @@ export function Workers({ year, onChange }: WorkersProps) {
     setOpen(true);
   };
   const save = () => {
+    if (draft.hasOfficialBalance && (!draft.officialBalance.trim() || parseDollarInput(draft.officialBalance) === null || !draft.officialBalanceDate)) {
+      setValidation('Enter the known remaining balance and the date it was reported.');
+      return;
+    }
     const previous = year.workers.find((worker) => worker.id === draft.id);
     const worker = workerFromDraft(draft, previous);
     if (!worker) {
@@ -218,11 +226,19 @@ export function Workers({ year, onChange }: WorkersProps) {
         </div>
         {draft.hasWorkStudy && (
           <div className="mt-5 rounded-lg border border-border bg-surface-900/55 p-4">
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid items-end gap-4 md:grid-cols-2">
               <Field label="Starting award"><MoneyInput value={draft.award} onValueChange={(value) => setDraft((current) => ({ ...current, award: value }))} /></Field>
-              <Field label="Official remaining balance" hint="Optional recalibration."><MoneyInput placeholder="Not available" value={draft.officialBalance} onValueChange={(value) => setDraft((current) => ({ ...current, officialBalance: value }))} /></Field>
-              <Field label="Balance as of"><DatePicker disabled={!draft.officialBalance} min={year.startDate} max={year.endDate} value={draft.officialBalanceDate} onChange={(value) => setDraft({ ...draft, officialBalanceDate: value })} aria-label="Balance as of" /></Field>
+              <div className="pb-1">
+                <div className="flex items-center gap-2"><Checkbox id="known-balance" checked={draft.hasOfficialBalance} onCheckedChange={(checked) => setDraft({ ...draft, hasOfficialBalance: checked === true, officialBalance: checked === true ? draft.officialBalance : '', officialBalanceDate: checked === true ? draft.officialBalanceDate : '' })} /><label htmlFor="known-balance" className="text-[13px] font-medium">I have a current remaining balance</label></div>
+                <p className="ml-6 mt-1 text-[11px] leading-4 text-muted-foreground">For a worker added or updated after their award has already been used.</p>
+              </div>
             </div>
+            {draft.hasOfficialBalance && (
+              <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-2">
+                <Field label="Current remaining balance"><MoneyInput placeholder="Enter balance" value={draft.officialBalance} onValueChange={(value) => setDraft((current) => ({ ...current, officialBalance: value }))} /></Field>
+                <Field label="Balance reported on"><DatePicker required min={year.startDate} max={year.endDate} value={draft.officialBalanceDate} onChange={(value) => setDraft({ ...draft, officialBalanceDate: value })} aria-label="Balance reported on" /></Field>
+              </div>
+            )}
             <div className="mt-4 flex items-center gap-2"><Checkbox id="outside-job" checked={draft.hasOutsideJob} onCheckedChange={(checked) => setDraft({ ...draft, hasOutsideJob: checked === true })} /><label htmlFor="outside-job" className="text-[13px] font-medium">Estimate another job that uses the same award</label></div>
             {draft.hasOutsideJob && (
               <div className="mt-4 grid gap-4 border-t border-border pt-4 md:grid-cols-4">
