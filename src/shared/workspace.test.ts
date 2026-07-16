@@ -54,4 +54,15 @@ describe('workspace validation', () => {
     year.workers[0]!.schedules[0]!.dayOverrides![0]!.shifts[0]!.date = '2026-09-09';
     expect(validateWorkspace(workspace)).toBe(false);
   });
+
+  it('accepts finals ranges only when both dates stay inside the academic period', () => {
+    const workspace = createInitialWorkspace();
+    const fall = workspace.fiscalYears[0]!.periods.find((period) => period.type === 'fall')!;
+    expect(validateWorkspace(workspace)).toBe(true);
+    fall.finalsStartDate = '2026-12-07';
+    fall.finalsEndDate = undefined;
+    expect(validateWorkspace(workspace)).toBe(false);
+    fall.finalsEndDate = '2027-01-01';
+    expect(validateWorkspace(workspace)).toBe(false);
+  });
 });

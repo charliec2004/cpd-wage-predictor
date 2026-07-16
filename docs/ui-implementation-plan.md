@@ -12,7 +12,9 @@ Schedule editing has explicit authority boundaries:
 - A past date cannot be rewritten from Schedule. It opens Changes with the worker and date already selected, preserving the rule that past scheduled time is assumed worked until corrected.
 - A stored empty one-day change means no shift on that date; removing it restores the repeating template.
 
-The Schedule page separates `Week plan`, `Repeating`, and `Year calendar` so daily staffing work does not compete visually with fiscal-year configuration. Main navigation now uses `Outlook` and `Changes`, matching the user's decision and correction workflows.
+The Schedule page separates `Week plan`, `Repeating`, and `Fiscal year setup` so daily staffing work does not compete visually with fiscal-year configuration. Main navigation now uses `Outlook` and `Changes`, matching the user's decision and correction workflows.
+
+`Fiscal year setup` is the single home for Summer and semester boundaries, Fall and Spring finals markers, recurring versus week-specific schedule entry, non-working days, and early or partial closures. Outlook's `Configure year` action opens that view directly. Work-study availability is shown as a derived rule instead of an editable toggle: only Summer is unavailable. Finals are visual context; closures are operational and remove overlapping forecast hours.
 
 ## Subject and job
 

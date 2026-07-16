@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { validateWorkspace, type Workspace } from '../../../shared/workspace';
-import { createInitialWorkspace } from '../domain/seed';
+import { createInitialWorkspace, normalizeWorkspaceRules } from '../domain/seed';
 
 const PREVIEW_STORAGE_KEY = 'cpd-wage-predictor-preview-workspace';
 
@@ -35,7 +35,7 @@ export function useWorkspace(): WorkspaceState {
         if (stored) {
           try {
             const candidate: unknown = JSON.parse(stored);
-            if (validateWorkspace(candidate)) initial = candidate;
+            if (validateWorkspace(candidate)) initial = normalizeWorkspaceRules(candidate);
             else localStorage.removeItem(PREVIEW_STORAGE_KEY);
           } catch {
             localStorage.removeItem(PREVIEW_STORAGE_KEY);
@@ -50,7 +50,7 @@ export function useWorkspace(): WorkspaceState {
       }
       const result = await window.cpdWagePredictor.loadWorkspace();
       if (!active) return;
-      if (result.ok) setWorkspace(result.value ?? createInitialWorkspace());
+      if (result.ok) setWorkspace(normalizeWorkspaceRules(result.value ?? createInitialWorkspace()));
       else {
         setWorkspace(createInitialWorkspace());
         setError(result.error ?? 'The workspace could not be opened.');
@@ -105,7 +105,7 @@ export function useWorkspace(): WorkspaceState {
     }
     const result = await window.cpdWagePredictor.importWorkspace();
     if (result.ok && result.value) {
-      setWorkspace({ ...result.value, updatedAt: new Date().toISOString() });
+      setWorkspace(normalizeWorkspaceRules({ ...result.value, updatedAt: new Date().toISOString() }));
       setMessage(`Imported ${result.value.name}.`);
     } else if (!result.canceled) setError(result.error ?? 'The workspace could not be imported.');
   }, []);

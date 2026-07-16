@@ -112,12 +112,11 @@ An effective wage rate and a confirmed rounding policy are required for official
 A wage dollar is eligible only if:
 
 - the award is accepted/confirmed under the chosen policy
-- the date is inside the configured eligibility window
-- the date is not Summer or another excluded period
+- the date is not inside a period typed `Summer`
 - remaining award exists after known outside use and earlier allocations
 - the employment/earning type is eligible
 
-The default Summer rule is ineligible because Chapman's current public guidance says Federal Work-Study is not available during Summer.
+Summer is the only calendar exclusion. Winter transition, Interterm, transition days, Fall and Spring finals, and every other non-Summer fiscal-year date remain eligible. The app derives this from the period type and does not expose an editable per-period eligibility toggle.
 
 ## 8. Outside-job work-study consumption
 

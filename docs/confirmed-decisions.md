@@ -11,8 +11,8 @@ These decisions supersede conflicting provisional language elsewhere in the spec
 - During eligible periods, each eligible wage dollar consumes one dollar of the student's work-study award and CPD's regular student-worker budget pays zero for that dollar.
 - Once the award is exhausted, subsequent wages are paid by CPD's regular student-worker budget.
 - A typical award is $3,000, but the award is editable per student and academic year.
-- One award balance is shared across Fall, Interterm, and Spring.
-- Summer is not work-study eligible. Fall, Interterm, and Spring are eligible.
+- One award balance is shared across every non-Summer part of the fiscal year.
+- Summer is the only period that is not work-study eligible. Fall, Winter transition, Interterm, transition days, Spring, and finals all remain eligible.
 - Other work-study jobs consume the same award. CPD expects to know the other job's hourly wage and average weekly hours.
 - The app estimates the remaining award by default from the starting award, CPD earnings, and estimated outside-job earnings.
 - If CPD later obtains an official remaining balance, a user can enter the balance and effective date to recalibrate future estimates.
@@ -32,6 +32,13 @@ These decisions supersede conflicting provisional language elsewhere in the spec
 - A full-day office closure automatically suppresses overlapping planned hours.
 - A partial closure clips a timed shift to the remaining open interval.
 - An explicit manual exception can restore hours when a student actually worked remotely, at an event, or under another authorized exception.
+
+## Fiscal-year calendar
+
+- Each saved fiscal year owns its own academic-period boundaries, schedule-entry modes, finals markers, and office closures.
+- A fiscal year can contain a Summer segment at both its beginning and its end because the fiscal year runs June 1–May 31.
+- Finals are a visual calendar marker only. They warn staff that scheduled hours may need review, but never reduce hours automatically.
+- Non-working days and early or partial closures do change forecasted hours automatically.
 
 ## Forecast scenarios
 

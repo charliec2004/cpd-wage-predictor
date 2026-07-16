@@ -1,12 +1,13 @@
-import type {
-  AcademicPeriod,
-  FiscalYear,
-  ForecastScenario,
-  HourAdjustment,
-  OfficeClosure,
-  PlannedHire,
-  RecurringShift,
-  Worker,
+import {
+  isWorkStudyEligiblePeriod,
+  type AcademicPeriod,
+  type FiscalYear,
+  type ForecastScenario,
+  type HourAdjustment,
+  type OfficeClosure,
+  type PlannedHire,
+  type RecurringShift,
+  type Worker,
 } from '../../../shared/workspace';
 import { addDays, clampDate, datesBetween, isWithin, mondayOfWeek, weekday } from './dates';
 
@@ -182,7 +183,7 @@ function calculateWorkerRows(
     const plan = plans.get(date);
     if (!plan) continue;
     const period = periodForDate(year, date);
-    const eligible = Boolean(worker.workStudy && period?.workStudyEligible);
+    const eligible = Boolean(worker.workStudy && period && isWorkStudyEligiblePeriod(period));
     const outsideConsumption = Math.min(remainingAward, dailyOutsideConsumption(worker, date, eligible));
     remainingAward -= outsideConsumption;
     const gross = Math.round((plan.minutes * worker.hourlyRateCents) / 60);
@@ -220,7 +221,7 @@ function calculatePlannedHireRows(year: FiscalYear, hire: PlannedHire, asOfDate:
     );
     const minutes = fullClosure ? 0 : weekdayMinutes;
     const gross = Math.round((minutes * hire.hourlyRateCents) / 60);
-    const covered = period?.workStudyEligible ? Math.min(gross, remainingAward) : 0;
+    const covered = period && isWorkStudyEligiblePeriod(period) ? Math.min(gross, remainingAward) : 0;
     remainingAward -= covered;
     rows.push({
       date,

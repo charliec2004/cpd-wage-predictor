@@ -44,6 +44,7 @@ export default function App() {
   const [addFiscalYearOpen, setAddFiscalYearOpen] = React.useState(false);
   const [scenarioCreateRequest, setScenarioCreateRequest] = React.useState(0);
   const [changeOpenRequest, setChangeOpenRequest] = React.useState<{ key: number; workerId: string; date: string } | null>(null);
+  const [scheduleViewRequest, setScheduleViewRequest] = React.useState<{ key: number; view: 'week' | 'repeating' | 'calendar' } | null>(null);
   const [asOfDate, setAsOfDate] = React.useState(todayInLosAngeles());
   const [scenarioId, setScenarioId] = React.useState<string | null>(null);
   const platform = window.cpdWagePredictor?.platform ?? ('darwin' as DesktopPlatform);
@@ -92,7 +93,8 @@ export default function App() {
         onScenarioChange={setScenarioId}
         onBudgetChange={(budgetCents) => updateYear((current) => ({ ...current, budgetCents }))}
         onOpenWorkers={() => setActiveTab('workers')}
-        onOpenSchedule={() => setActiveTab('schedule')}
+        onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
+        onOpenYearSetup={() => { setScheduleViewRequest({ key: Date.now(), view: 'calendar' }); setActiveTab('schedule'); }}
         onAddScenario={() => {
           setActiveTab('scenarios');
           setScenarioCreateRequest((request) => request + 1);
@@ -100,7 +102,7 @@ export default function App() {
       />
     ),
     workers: <Workers year={year} onChange={(workers) => updateYear((current) => ({ ...current, workers }))} />,
-    schedule: <Schedule year={year} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} onOpenChanges={(workerId, date) => { setChangeOpenRequest({ key: Date.now(), workerId, date }); setActiveTab('adjustments'); }} />,
+    schedule: <Schedule year={year} viewRequest={scheduleViewRequest} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} onOpenChanges={(workerId, date) => { setChangeOpenRequest({ key: Date.now(), workerId, date }); setActiveTab('adjustments'); }} />,
     adjustments: <Adjustments year={year} openRequest={changeOpenRequest} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
     scenarios: (
       <Scenarios

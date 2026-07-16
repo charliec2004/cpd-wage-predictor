@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { AlertTriangle, ArrowRight, CalendarDays, CalendarRange, Check, CircleDollarSign, Clock3, WalletCards } from 'lucide-react';
-import type { FiscalYear } from '../../../shared/workspace';
+import { isWorkStudyEligiblePeriod, type FiscalYear } from '../../../shared/workspace';
 import { ActionSelect } from '../../components/ui/action-select';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -20,6 +20,7 @@ interface OverviewProps {
   onBudgetChange: (budgetCents: number) => void;
   onOpenWorkers: () => void;
   onOpenSchedule: () => void;
+  onOpenYearSetup: () => void;
   onAddScenario: () => void;
 }
 
@@ -113,22 +114,24 @@ function daysInclusive(startDate: string, endDate: string): number {
   return Math.max(0, Math.floor((parseIsoDate(endDate).getTime() - parseIsoDate(startDate).getTime()) / 86_400_000) + 1);
 }
 
-function FiscalContext({ year, asOfDate, onOpenSchedule }: { year: FiscalYear; asOfDate: string; onOpenSchedule: () => void }) {
+function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; asOfDate: string; onOpenYearSetup: () => void }) {
   const currentPeriod = year.periods.find((period) => asOfDate >= period.startDate && asOfDate <= period.endDate);
   const nextPeriod = year.periods.find((period) => period.startDate > asOfDate);
   const nextClosure = year.closures.find((closure) => closure.date >= asOfDate);
   const remainingDays = daysInclusive(asOfDate, year.endDate);
   const visiblePeriods = year.periods.filter((period) => daysInclusive(period.startDate, period.endDate) >= 7);
+  const currentUsesWorkStudy = currentPeriod ? isWorkStudyEligiblePeriod(currentPeriod) : false;
+  const currentIsFinals = Boolean(currentPeriod?.finalsStartDate && currentPeriod.finalsEndDate && asOfDate >= currentPeriod.finalsStartDate && asOfDate <= currentPeriod.finalsEndDate);
 
   return (
     <section className="mt-6 overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="fiscal-calendar-heading">
       <div className="grid lg:grid-cols-[300px_minmax(0,1fr)]">
         <div className="border-b border-border p-5 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground"><CalendarRange className="h-4 w-4" />As of {formatShortDate(asOfDate)}</div>
-          <div className="mt-3 text-[20px] font-semibold tracking-tight">{currentPeriod?.name ?? 'Outside this fiscal year'}</div>
+          <div className="mt-3 text-[20px] font-semibold tracking-tight">{currentPeriod ? `${currentPeriod.name}${currentIsFinals ? ' · Finals' : ''}` : 'Outside this fiscal year'}</div>
           {currentPeriod && <div className="mt-1 text-[12px] text-muted-foreground">{formatShortDate(currentPeriod.startDate)}–{formatShortDate(currentPeriod.endDate)}</div>}
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
-            <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Work-study</div><div className={`mt-1 text-[12px] font-semibold ${currentPeriod?.workStudyEligible ? 'text-[hsl(var(--success-accent))]' : ''}`}>{currentPeriod?.workStudyEligible ? 'Eligible now' : 'Not eligible now'}</div></div>
+            <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Work-study</div><div className={`mt-1 text-[12px] font-semibold ${currentUsesWorkStudy ? 'text-[hsl(var(--success-accent))]' : ''}`}>{currentUsesWorkStudy ? 'Available now' : 'Not available · Summer'}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">FY remaining</div><div className="mt-1 font-mono text-[12px] font-semibold">{remainingDays} days</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Next period</div><div className="mt-1 text-[12px] font-semibold">{nextPeriod ? `${nextPeriod.name} · ${formatShortDate(nextPeriod.startDate)}` : 'Fiscal-year close'}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Next closure</div><div className="mt-1 text-[12px] font-semibold">{nextClosure ? `${formatShortDate(nextClosure.date)} · ${nextClosure.name}` : 'None remaining'}</div></div>
@@ -139,9 +142,9 @@ function FiscalContext({ year, asOfDate, onOpenSchedule }: { year: FiscalYear; a
           <div className="flex items-center justify-between gap-4 border-b border-border px-5 py-4">
             <div>
               <h2 id="fiscal-calendar-heading" className="text-[14px] font-semibold">How this year is modeled</h2>
-              <p className="mt-0.5 text-[11px] text-muted-foreground">Every period has its own schedule style and work-study rule.</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Only Summer is outside work-study. Finals dates are visual context and do not change hours.</p>
             </div>
-            <Button variant="outline" size="sm" onClick={onOpenSchedule}>Edit periods<ArrowRight className="h-3.5 w-3.5" /></Button>
+            <Button variant="outline" size="sm" onClick={onOpenYearSetup}>Configure year<ArrowRight className="h-3.5 w-3.5" /></Button>
           </div>
           <div className="grid grid-cols-[minmax(160px,1.15fr)_minmax(150px,1fr)_minmax(150px,1fr)] border-b border-border bg-surface-900 px-5 py-2 text-[10px] font-medium uppercase tracking-[0.06em] text-muted-foreground">
             <span>Academic period</span><span>Schedule entry</span><span>Wage coverage</span>
@@ -149,16 +152,18 @@ function FiscalContext({ year, asOfDate, onOpenSchedule }: { year: FiscalYear; a
           <div className="divide-y divide-border">
             {visiblePeriods.map((period) => {
               const current = period.id === currentPeriod?.id;
+              const workStudyAvailable = isWorkStudyEligiblePeriod(period);
               return (
                 <div key={period.id} className={`grid grid-cols-[minmax(160px,1.15fr)_minmax(150px,1fr)_minmax(150px,1fr)] items-center gap-3 px-5 py-2.5 text-[11px] ${current ? 'bg-[hsl(var(--action-primary)/0.08)]' : ''}`}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2"><span className="truncate text-[12px] font-semibold">{period.name}</span>{current && <Badge className="border-[hsl(var(--action-primary-border)/0.45)] bg-[hsl(var(--action-primary)/0.12)] text-[hsl(var(--success-accent))]">Current</Badge>}</div>
                     <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{formatShortDate(period.startDate)}–{formatShortDate(period.endDate)}</div>
+                    {period.finalsStartDate && period.finalsEndDate && <div className="mt-0.5 text-[9px] text-muted-foreground">Finals · {formatShortDate(period.finalsStartDate)}–{formatShortDate(period.finalsEndDate)}</div>}
                   </div>
                   <div className="text-muted-foreground">{period.scheduleMode === 'recurring' ? 'Repeats each week' : 'Enter week by week'}</div>
-                  <div className={`flex items-center gap-2 font-medium ${period.workStudyEligible ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}>
-                    <span className={`h-2 w-2 shrink-0 rounded-full ${period.workStudyEligible ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />
-                    {period.workStudyEligible ? 'Work-study available' : 'CPD pays wages'}
+                  <div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}>
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${workStudyAvailable ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />
+                    {workStudyAvailable ? 'Work-study available' : 'Not available · Summer'}
                   </div>
                 </div>
               );
@@ -203,7 +208,7 @@ function SummaryItem({ label, value, icon, green = false }: { label: string; val
   );
 }
 
-export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onAddScenario }: OverviewProps) {
+export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onAddScenario }: OverviewProps) {
   const [budgetDraft, setBudgetDraft] = React.useState(year.budgetCents === 0 ? '' : String(year.budgetCents / 100));
   React.useEffect(() => setBudgetDraft(year.budgetCents === 0 ? '' : String(year.budgetCents / 100)), [year.id, year.budgetCents]);
   const commitBudget = (value = budgetDraft) => {
@@ -254,7 +259,7 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
       {!ready ? (
         <>
           <SetupPath year={year} budgetDraft={budgetDraft} setBudgetDraft={setBudgetDraft} commitBudget={commitBudget} onOpenWorkers={onOpenWorkers} onOpenSchedule={onOpenSchedule} />
-          <FiscalContext year={year} asOfDate={asOfDate} onOpenSchedule={onOpenSchedule} />
+          <FiscalContext year={year} asOfDate={asOfDate} onOpenYearSetup={onOpenYearSetup} />
         </>
       ) : (
         <>

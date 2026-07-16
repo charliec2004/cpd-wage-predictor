@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { FiscalYear, Worker, WorkerSchedule } from '../../../shared/workspace';
 import { calculateForecast } from './forecast';
-import { createFiscalYear2026 } from './seed';
+import { createFiscalYear2026, createInitialWorkspace, createNextFiscalYearTemplate, normalizeWorkspaceRules } from './seed';
 import { datesBetween } from './dates';
 
 function recurring(periodId: string, shifts: Array<[number, number, number]>): WorkerSchedule {
@@ -53,6 +53,52 @@ describe('calculateForecast', () => {
     expect(summerRow.cpdCostCents).toBe(3_200);
     expect(fallRow.workStudyCoveredCents).toBe(1_600);
     expect(fallRow.cpdCostCents).toBe(1_600);
+  });
+
+  it('makes every non-Summer period work-study eligible', () => {
+    const year = createFiscalYear2026();
+    expect(year.periods.filter((period) => period.type === 'summer').every((period) => !period.workStudyEligible)).toBe(true);
+    expect(year.periods.filter((period) => period.type !== 'summer').every((period) => period.workStudyEligible)).toBe(true);
+
+    year.closures = [];
+    const winter = year.periods.find((period) => period.type === 'winter')!;
+    year.workers = [worker(year, { workStudy: { awardCents: 10_000 }, schedules: [recurring(winter.id, [[1, 540, 600]])] })];
+    const winterMonday = datesBetween(winter.startDate, winter.endDate).find((date) => new Date(`${date}T00:00:00Z`).getUTCDay() === 1)!;
+    const winterRow = calculateForecast(year, winterMonday).daily.find((row) => row.date === winterMonday)!;
+    expect(winterRow.workStudyCoveredCents).toBe(1_600);
+    expect(winterRow.cpdCostCents).toBe(0);
+  });
+
+  it('migrates legacy transition eligibility and Post-Spring Summer classification', () => {
+    const workspace = createInitialWorkspace();
+    const year = workspace.fiscalYears[0]!;
+    const winter = year.periods.find((period) => period.type === 'winter')!;
+    winter.workStudyEligible = false;
+    const close = year.periods.at(-1)!;
+    close.name = 'Post-Spring / FY close';
+    close.type = 'transition';
+    close.workStudyEligible = false;
+
+    const normalized = normalizeWorkspaceRules(workspace).fiscalYears[0]!;
+    expect(normalized.periods.find((period) => period.type === 'winter')?.workStudyEligible).toBe(true);
+    expect(normalized.periods.at(-1)).toMatchObject({ name: 'Summer 2027 / FY close', type: 'summer', workStudyEligible: false });
+  });
+
+  it('carries fiscal calendar and finals configuration into the next-year template', () => {
+    const current = createFiscalYear2026();
+    const next = createNextFiscalYearTemplate(current);
+    const nextFall = next.periods.find((period) => period.type === 'fall')!;
+    const nextSummer = next.periods.find((period) => period.type === 'summer')!;
+
+    expect(next.label).toBe('FY 2027–28');
+    expect(nextFall).toMatchObject({
+      startDate: '2027-08-24',
+      finalsStartDate: '2027-12-07',
+      finalsEndDate: '2027-12-12',
+      workStudyEligible: true,
+    });
+    expect(nextSummer.workStudyEligible).toBe(false);
+    expect(next.closures).toHaveLength(0);
   });
 
   it('depletes the award from estimated outside-job earnings before CPD earnings', () => {

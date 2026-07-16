@@ -115,7 +115,7 @@ Each fiscal year defaults to June 1 at 12:00 a.m. through May 31 at 11:59:59 p.m
 Each date can carry independent layers:
 
 1. `Fiscal membership` — which fiscal year owns the date.
-2. `Academic period` — Summer, Fall, Interterm, Spring, break, finals, or a custom period.
+2. `Academic period` — Summer, Fall, Interterm, Spring, transition, or a custom period, with optional finals subranges.
 3. `Office availability` — normal hours, reduced hours, closed, or custom.
 4. `Staffing expectation` — normal, reduced, elevated, or manual.
 5. `Named events` — commencement, career fair, orientation, or other demand drivers.
@@ -137,17 +137,15 @@ Recommended non-overlapping period types:
 
 - Summer
 - Fall instruction
-- Fall finals
 - Winter transition
 - Interterm
 - Interterm/Spring transition
 - Spring instruction
-- Spring finals
-- Post-Spring/FY close
+- Summer/FY close
 - Unclassified
 - Custom
 
-Periods must partition every fiscal-year date exactly once so no transition day disappears from the calculation. If CPD has not yet classified a date, the app creates a visible `Unclassified` period that blocks year confirmation. Thanksgiving recess, Spring Break, winter closure, commencement, and similar overlays are calendar events or office rules rather than overlapping academic periods.
+Fall and Spring finals are optional subranges used for visual context and review prompts; they do not modify planned hours. Periods must partition every fiscal-year date exactly once so no transition day disappears from the calculation. If CPD has not yet classified a date, the app creates a visible `Unclassified` period that blocks year confirmation. Thanksgiving recess, Spring Break, winter closure, commencement, and similar overlays are calendar events or office rules rather than overlapping academic periods. Only periods typed `Summer` disable work-study.
 
 ### 4.4 Office availability
 

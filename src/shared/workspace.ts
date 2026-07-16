@@ -38,6 +38,12 @@ export interface AcademicPeriod {
   endDate: string;
   scheduleMode: ScheduleMode;
   workStudyEligible: boolean;
+  finalsStartDate?: string;
+  finalsEndDate?: string;
+}
+
+export function isWorkStudyEligiblePeriod(period: AcademicPeriod): boolean {
+  return period.type !== 'summer';
 }
 
 export interface OfficeClosure {
@@ -189,14 +195,26 @@ function isArrayOf<T>(value: unknown, max: number, validator: (item: unknown) =>
 
 function isPeriod(value: unknown): value is AcademicPeriod {
   if (!isRecord(value)) return false;
+  const startDate = isDate(value.startDate) ? value.startDate : null;
+  const endDate = isDate(value.endDate) ? value.endDate : null;
+  const finalsValid =
+    (value.finalsStartDate === undefined && value.finalsEndDate === undefined) ||
+    (startDate !== null &&
+      endDate !== null &&
+      isDate(value.finalsStartDate) &&
+      isDate(value.finalsEndDate) &&
+      value.finalsStartDate >= startDate &&
+      value.finalsEndDate <= endDate &&
+      value.finalsStartDate <= value.finalsEndDate);
   return (
     isString(value.id, 100) &&
     isString(value.name, 100) &&
     ['summer', 'fall', 'winter', 'interterm', 'spring', 'transition'].includes(String(value.type)) &&
-    isDate(value.startDate) &&
-    isDate(value.endDate) &&
+    startDate !== null &&
+    endDate !== null &&
     ['recurring', 'week-specific'].includes(String(value.scheduleMode)) &&
-    typeof value.workStudyEligible === 'boolean'
+    typeof value.workStudyEligible === 'boolean' &&
+    finalsValid
   );
 }
 

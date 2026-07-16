@@ -10,15 +10,16 @@ import {
   RotateCcw,
   Trash2,
 } from 'lucide-react';
-import type {
-  AcademicPeriod,
-  DatedShift,
-  FiscalYear,
-  OfficeClosure,
-  RecurringShift,
-  ScheduleDayOverride,
-  Worker,
-  WorkerSchedule,
+import {
+  isWorkStudyEligiblePeriod,
+  type AcademicPeriod,
+  type DatedShift,
+  type FiscalYear,
+  type OfficeClosure,
+  type RecurringShift,
+  type ScheduleDayOverride,
+  type Worker,
+  type WorkerSchedule,
 } from '../../../shared/workspace';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
@@ -47,6 +48,7 @@ interface ScheduleProps {
   onClosuresChange: (closures: OfficeClosure[]) => void;
   onPeriodsChange: (periods: AcademicPeriod[]) => void;
   onOpenChanges: (workerId: string, date: string) => void;
+  viewRequest?: { key: number; view: ScheduleView } | null;
 }
 
 type ScheduleView = 'week' | 'repeating' | 'calendar';
@@ -130,7 +132,7 @@ function WeekSummary({ label, value, green = false }: { label: string; value: st
   );
 }
 
-export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsChange, onOpenChanges }: ScheduleProps) {
+export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsChange, onOpenChanges, viewRequest }: ScheduleProps) {
   const today = todayInLosAngeles();
   const [view, setView] = React.useState<ScheduleView>('week');
   const [weekStart, setWeekStart] = React.useState(() => mondayOfWeek(clampDate(today, year.startDate, year.endDate)));
@@ -155,6 +157,12 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
     { minutes: 0, gross: 0, workStudy: 0, cpd: 0 },
   );
   const visiblePeriods = year.periods.filter((period) => weekDates.some((date) => isWithin(date, period.startDate, period.endDate)));
+  const weekContextLabels = visiblePeriods.map((item) => {
+    const finalsStart = item.finalsStartDate;
+    const finalsEnd = item.finalsEndDate;
+    const includesFinals = Boolean(finalsStart && finalsEnd && weekDates.some((date) => isWithin(date, finalsStart, finalsEnd)));
+    return includesFinals ? `${item.name} finals` : item.name;
+  });
   const worker = year.workers.find((candidate) => candidate.id === workerId);
   const period = year.periods.find((candidate) => candidate.id === periodId);
   const schedule = worker && period ? ensureSchedule(worker, period.id, period.scheduleMode) : null;
@@ -166,6 +174,10 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
   React.useEffect(() => {
     setWeekStart(mondayOfWeek(clampDate(today, year.startDate, year.endDate)));
   }, [today, year.id, year.startDate, year.endDate]);
+
+  React.useEffect(() => {
+    if (viewRequest) setView(viewRequest.view);
+  }, [viewRequest]);
 
   const saveSchedule = (targetWorkerId: string, next: WorkerSchedule) => {
     onWorkersChange(year.workers.map((candidate) => candidate.id === targetWorkerId ? replaceSchedule(candidate, next) : candidate));
@@ -275,6 +287,21 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
     onPeriodsChange(next);
   };
 
+  const changeFinalsRange = (periodToChange: AcademicPeriod, edge: 'start' | 'end', value: string) => {
+    onPeriodsChange(year.periods.map((candidate) => {
+      if (candidate.id !== periodToChange.id) return candidate;
+      if (!value) return { ...candidate, finalsStartDate: undefined, finalsEndDate: undefined };
+      if (edge === 'start') {
+        return {
+          ...candidate,
+          finalsStartDate: value,
+          finalsEndDate: candidate.finalsEndDate && candidate.finalsEndDate >= value ? candidate.finalsEndDate : candidate.endDate,
+        };
+      }
+      return { ...candidate, finalsStartDate: candidate.finalsStartDate ?? value, finalsEndDate: value };
+    }));
+  };
+
   const dayEditWorker = dayEdit ? year.workers.find((candidate) => candidate.id === dayEdit.workerId) : undefined;
   const dayEditPeriod = dayEdit ? periodForDate(year, dayEdit.date) : undefined;
   const dayEditPast = Boolean(dayEdit && dayEdit.date < today);
@@ -290,11 +317,11 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
         <div className="grid grid-cols-3 gap-1 rounded-md border border-border bg-surface-900 p-1" aria-label="Schedule view">
           <Button size="sm" variant={view === 'week' ? 'secondary' : 'ghost'} onClick={() => setView('week')}><CalendarDays className="h-3.5 w-3.5" />Week plan</Button>
           <Button size="sm" variant={view === 'repeating' ? 'secondary' : 'ghost'} onClick={() => setView('repeating')}><Repeat2 className="h-3.5 w-3.5" />Repeating</Button>
-          <Button size="sm" variant={view === 'calendar' ? 'secondary' : 'ghost'} onClick={() => setView('calendar')}><CalendarOff className="h-3.5 w-3.5" />Year calendar</Button>
+          <Button size="sm" variant={view === 'calendar' ? 'secondary' : 'ghost'} onClick={() => setView('calendar')}><CalendarOff className="h-3.5 w-3.5" />Fiscal year setup</Button>
         </div>
       </div>
 
-      {year.workers.length === 0 ? (
+      {view !== 'calendar' && year.workers.length === 0 ? (
         <NoticePanel variant="warning" title="Add a worker first" description="Each shift belongs to a worker and an academic period." />
       ) : view === 'week' ? (
         <section className="overflow-hidden rounded-lg border border-border bg-card">
@@ -304,7 +331,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
               <div className="min-w-48 text-center">
                 <div className="text-[13px] font-semibold">{formatShortDate(weekStart)}–{formatShortDate(weekEnd)}</div>
                 <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
-                  {visiblePeriods.map((item) => <span key={item.id}>{item.name}</span>).reduce<React.ReactNode[]>((parts, item, index) => index === 0 ? [item] : [...parts, <span key={`dot-${index}`}>·</span>, item], [])}
+                  {weekContextLabels.map((label) => <span key={label}>{label}</span>).reduce<React.ReactNode[]>((parts, item, index) => index === 0 ? [item] : [...parts, <span key={`dot-${index}`}>·</span>, item], [])}
                 </div>
               </div>
               <Button variant="outline" size="icon-sm" aria-label="Next week" disabled={addDays(weekStart, 7) > year.endDate} onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
@@ -407,27 +434,36 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
           ) : <div className="px-6 py-16 text-center text-[12px] text-muted-foreground">Choose a period that repeats weekly.</div>}
         </section>
       ) : (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="space-y-4">
           <section className="overflow-hidden rounded-lg border border-border bg-card">
             <div className="border-b border-border bg-surface-900/55 px-4 py-3">
-              <h2 className="text-[13px] font-semibold">Academic periods for {year.label}</h2>
-              <p className="mt-1 text-[11px] text-muted-foreground">Each date belongs to one period. The period controls schedule entry and work-study eligibility.</p>
+              <h2 className="text-[13px] font-semibold">Fiscal-year calendar for {year.label}</h2>
+              <p className="mt-1 text-[11px] text-muted-foreground">Set Summer and semester boundaries here. Finals are visual context only and never reduce scheduled hours automatically.</p>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] border-collapse text-left text-[12px]">
-                <thead className="bg-surface-900 text-[11px] text-muted-foreground"><tr><th className="border-b border-border px-3 py-2 font-medium">Period</th><th className="border-b border-border px-3 py-2 font-medium">Starts</th><th className="border-b border-border px-3 py-2 font-medium">Ends</th><th className="border-b border-border px-3 py-2 font-medium">Schedule entry</th><th className="border-b border-border px-3 py-2 font-medium">Work-study</th></tr></thead>
+              <table className="w-full min-w-[1080px] border-collapse text-left text-[12px]">
+                <thead className="bg-surface-900 text-[11px] text-muted-foreground"><tr><th className="border-b border-border px-3 py-2 font-medium">Period</th><th className="border-b border-border px-3 py-2 font-medium">Starts</th><th className="border-b border-border px-3 py-2 font-medium">Ends</th><th className="border-b border-border px-3 py-2 font-medium">Finals dates · visual only</th><th className="border-b border-border px-3 py-2 font-medium">Schedule entry</th><th className="border-b border-border px-3 py-2 font-medium">Work-study</th></tr></thead>
                 <tbody>
                   {year.periods.map((academicPeriod, index) => {
                     const previous = year.periods[index - 1];
                     const following = year.periods[index + 1];
-                    const eligibleId = `period-work-study-${academicPeriod.id}`;
+                    const canHaveFinals = academicPeriod.type === 'fall' || academicPeriod.type === 'spring';
+                    const workStudyAvailable = isWorkStudyEligiblePeriod(academicPeriod);
                     return (
                       <tr key={academicPeriod.id}>
-                        <td className="border-b border-border px-3 py-2.5 font-medium">{academicPeriod.name}</td>
+                        <td className="border-b border-border px-3 py-2.5"><div className="font-medium">{academicPeriod.name}</div><div className="mt-0.5 text-[10px] capitalize text-muted-foreground">{academicPeriod.type}</div></td>
                         <td className="border-b border-border px-3 py-2.5"><DatePicker required aria-label={`${academicPeriod.name} start date`} disabled={index === 0} min={previous ? addDays(previous.startDate, 1) : year.startDate} max={academicPeriod.endDate} value={academicPeriod.startDate} onChange={(value) => changePeriodBoundary(index, 'start', value)} /></td>
                         <td className="border-b border-border px-3 py-2.5"><DatePicker required aria-label={`${academicPeriod.name} end date`} disabled={index === year.periods.length - 1} min={academicPeriod.startDate} max={following ? addDays(following.endDate, -1) : year.endDate} value={academicPeriod.endDate} onChange={(value) => changePeriodBoundary(index, 'end', value)} /></td>
+                        <td className="border-b border-border px-3 py-2.5">
+                          {canHaveFinals ? (
+                            <div className="grid grid-cols-2 gap-2">
+                              <DatePicker aria-label={`${academicPeriod.name} finals start`} min={academicPeriod.startDate} max={academicPeriod.finalsEndDate ?? academicPeriod.endDate} value={academicPeriod.finalsStartDate ?? ''} onChange={(value) => changeFinalsRange(academicPeriod, 'start', value)} placeholder="Starts" />
+                              <DatePicker aria-label={`${academicPeriod.name} finals end`} disabled={!academicPeriod.finalsStartDate} min={academicPeriod.finalsStartDate ?? academicPeriod.startDate} max={academicPeriod.endDate} value={academicPeriod.finalsEndDate ?? ''} onChange={(value) => changeFinalsRange(academicPeriod, 'end', value)} placeholder="Ends" />
+                            </div>
+                          ) : <span className="text-muted-foreground">—</span>}
+                        </td>
                         <td className="border-b border-border px-3 py-2.5"><Select aria-label={`${academicPeriod.name} schedule style`} value={academicPeriod.scheduleMode} onChange={(event) => onPeriodsChange(year.periods.map((candidate) => candidate.id === academicPeriod.id ? { ...candidate, scheduleMode: event.target.value as AcademicPeriod['scheduleMode'] } : candidate))}><option value="recurring">Repeats weekly</option><option value="week-specific">Plan week by week</option></Select></td>
-                        <td className="border-b border-border px-3 py-2.5"><div className="flex items-center gap-2"><Checkbox id={eligibleId} checked={academicPeriod.workStudyEligible} onCheckedChange={(checked) => onPeriodsChange(year.periods.map((candidate) => candidate.id === academicPeriod.id ? { ...candidate, workStudyEligible: checked === true } : candidate))} /><label htmlFor={eligibleId} className="text-[12px]">{academicPeriod.workStudyEligible ? 'Available' : 'CPD budget pays'}</label></div></td>
+                        <td className="border-b border-border px-3 py-2.5"><div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? 'text-[hsl(var(--success-accent))]' : 'text-muted-foreground'}`}><span className={`h-2 w-2 rounded-full ${workStudyAvailable ? 'bg-[hsl(var(--action-primary))]' : 'border border-surface-500'}`} />{workStudyAvailable ? 'Available' : 'Not available · Summer'}</div></td>
                       </tr>
                     );
                   })}
@@ -436,19 +472,21 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             </div>
           </section>
 
-          <section className="rounded-lg border border-border bg-card">
-            <div className="border-b border-border p-4"><div className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-muted-foreground" /><h2 className="text-[14px] font-semibold">Office closures</h2></div><p className="mt-1 text-[12px] text-muted-foreground">Closures automatically reduce overlapping planned shifts.</p></div>
-            <div className="space-y-3 p-4">
-              <Field label="Closure name"><Input placeholder="Office closed" value={closureDraft.name} onChange={(event) => setClosureDraft({ ...closureDraft, name: event.target.value })} /></Field>
-              <Field label="Date"><DatePicker required min={year.startDate} max={year.endDate} value={closureDraft.date} onChange={(value) => setClosureDraft({ ...closureDraft, date: value })} aria-label="Closure date" /></Field>
-              <div className="flex items-center gap-2"><Checkbox id="partial-closure" checked={closureDraft.partial} onCheckedChange={(checked) => setClosureDraft({ ...closureDraft, partial: checked === true })} /><label htmlFor="partial-closure" className="text-[12px] font-medium">Only part of the day</label></div>
-              {closureDraft.partial && <div className="grid grid-cols-2 gap-3"><Field label="Closed from"><Input type="time" value={closureDraft.start} onChange={(event) => setClosureDraft({ ...closureDraft, start: event.target.value })} /></Field><Field label="Closed until"><Input type="time" value={closureDraft.end} onChange={(event) => setClosureDraft({ ...closureDraft, end: event.target.value })} /></Field></div>}
-              <Button className="w-full" variant="outline" onClick={addClosure}><Plus className="h-4 w-4" />Add closure</Button>
-            </div>
-            <div className="max-h-72 overflow-y-auto border-t border-border">
+          <section className="overflow-hidden rounded-lg border border-border bg-card">
+            <div className="border-b border-border p-4"><div className="flex items-center gap-2"><CalendarOff className="h-4 w-4 text-muted-foreground" /><h2 className="text-[14px] font-semibold">Non-working days & early closures</h2></div><p className="mt-1 text-[12px] text-muted-foreground">These dates remove overlapping scheduled hours from the forecast. Use an all-day closure or enter only the hours CPD is closed.</p></div>
+            <div className="grid lg:grid-cols-[360px_minmax(0,1fr)]">
+              <div className="space-y-3 border-b border-border p-4 lg:border-b-0 lg:border-r">
+                <Field label="Closure name"><Input placeholder="Office closed" value={closureDraft.name} onChange={(event) => setClosureDraft({ ...closureDraft, name: event.target.value })} /></Field>
+                <Field label="Date"><DatePicker required min={year.startDate} max={year.endDate} value={closureDraft.date} onChange={(value) => setClosureDraft({ ...closureDraft, date: value })} aria-label="Closure date" /></Field>
+                <div className="flex items-center gap-2"><Checkbox id="partial-closure" checked={closureDraft.partial} onCheckedChange={(checked) => setClosureDraft({ ...closureDraft, partial: checked === true })} /><label htmlFor="partial-closure" className="text-[12px] font-medium">Early or partial closure</label></div>
+                {closureDraft.partial && <div className="grid grid-cols-2 gap-3"><Field label="Closed from"><Input type="time" value={closureDraft.start} onChange={(event) => setClosureDraft({ ...closureDraft, start: event.target.value })} /></Field><Field label="Closed until"><Input type="time" value={closureDraft.end} onChange={(event) => setClosureDraft({ ...closureDraft, end: event.target.value })} /></Field></div>}
+                <Button className="w-full" variant="outline" onClick={addClosure}><Plus className="h-4 w-4" />Add closure</Button>
+              </div>
+              <div className="max-h-72 overflow-y-auto">
               {year.closures.slice().sort((a, b) => a.date.localeCompare(b.date)).map((closure) => (
                 <div key={closure.id} className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0"><Clock3 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><div className="min-w-0 flex-1"><div className="truncate text-[12px] font-medium">{closure.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{formatLongDate(closure.date)}{closure.startMinute !== undefined ? ` · ${minutesToTime(closure.startMinute)}–${minutesToTime(closure.endMinute ?? 1440)}` : ' · all day'}</div></div><Button variant="ghost" size="icon-sm" aria-label={`Remove ${closure.name}`} onClick={() => onClosuresChange(year.closures.filter((candidate) => candidate.id !== closure.id))}><Trash2 className="h-3.5 w-3.5" /></Button></div>
               ))}
+              </div>
             </div>
           </section>
         </div>

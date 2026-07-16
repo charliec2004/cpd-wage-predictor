@@ -1,4 +1,4 @@
-import { WORKSPACE_SCHEMA_VERSION, type FiscalYear, type Workspace } from '../../../shared/workspace';
+import { WORKSPACE_SCHEMA_VERSION, isWorkStudyEligiblePeriod, type AcademicPeriod, type FiscalYear, type Workspace } from '../../../shared/workspace';
 
 function id(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
@@ -30,6 +30,8 @@ export function createFiscalYear2026(): FiscalYear {
         endDate: '2026-12-12',
         scheduleMode: 'recurring',
         workStudyEligible: true,
+        finalsStartDate: '2026-12-07',
+        finalsEndDate: '2026-12-12',
       },
       {
         id: 'period-winter-2026',
@@ -38,7 +40,7 @@ export function createFiscalYear2026(): FiscalYear {
         startDate: '2026-12-13',
         endDate: '2027-01-03',
         scheduleMode: 'week-specific',
-        workStudyEligible: false,
+        workStudyEligible: true,
       },
       {
         id: 'period-interterm-2027',
@@ -56,7 +58,7 @@ export function createFiscalYear2026(): FiscalYear {
         startDate: '2027-01-31',
         endDate: '2027-01-31',
         scheduleMode: 'week-specific',
-        workStudyEligible: false,
+        workStudyEligible: true,
       },
       {
         id: 'period-spring-2027',
@@ -66,11 +68,13 @@ export function createFiscalYear2026(): FiscalYear {
         endDate: '2027-05-22',
         scheduleMode: 'recurring',
         workStudyEligible: true,
+        finalsStartDate: '2027-05-17',
+        finalsEndDate: '2027-05-22',
       },
       {
         id: 'period-close-2027',
-        name: 'Post-Spring / FY close',
-        type: 'transition',
+        name: 'Summer 2027 / FY close',
+        type: 'summer',
         startDate: '2027-05-23',
         endDate: '2027-05-31',
         scheduleMode: 'week-specific',
@@ -127,6 +131,38 @@ function shiftCalendarYear(date: string, years: number): string {
   return parsed.toISOString().slice(0, 10);
 }
 
+function defaultFinalsDates(year: FiscalYear, period: AcademicPeriod): Pick<AcademicPeriod, 'finalsStartDate' | 'finalsEndDate'> {
+  if (period.finalsStartDate && period.finalsEndDate) return period;
+  if (year.label === 'FY 2026–27' && period.type === 'fall' && period.startDate <= '2026-12-07' && period.endDate >= '2026-12-12') {
+    return { finalsStartDate: '2026-12-07', finalsEndDate: '2026-12-12' };
+  }
+  if (year.label === 'FY 2026–27' && period.type === 'spring' && period.startDate <= '2027-05-17' && period.endDate >= '2027-05-22') {
+    return { finalsStartDate: '2027-05-17', finalsEndDate: '2027-05-22' };
+  }
+  return {};
+}
+
+export function normalizeWorkspaceRules(workspace: Workspace): Workspace {
+  return {
+    ...workspace,
+    fiscalYears: workspace.fiscalYears.map((year) => ({
+      ...year,
+      periods: year.periods.map((period) => {
+        const legacyPostSpring = period.name === 'Post-Spring / FY close';
+        const nextPeriod: AcademicPeriod = legacyPostSpring
+          ? {
+              ...period,
+              name: `Summer ${period.endDate.slice(0, 4)} / FY close`,
+              type: 'summer',
+              workStudyEligible: false,
+            }
+          : { ...period, workStudyEligible: isWorkStudyEligiblePeriod(period) };
+        return { ...nextPeriod, ...defaultFinalsDates(year, nextPeriod) };
+      }),
+    })),
+  };
+}
+
 export function createNextFiscalYearTemplate(current: FiscalYear): FiscalYear {
   const startYear = Number(current.startDate.slice(0, 4)) + 1;
   const periodIds = new Map<string, string>();
@@ -138,6 +174,9 @@ export function createNextFiscalYearTemplate(current: FiscalYear): FiscalYear {
       id: nextId,
       startDate: shiftCalendarYear(period.startDate, 1),
       endDate: shiftCalendarYear(period.endDate, 1),
+      finalsStartDate: period.finalsStartDate ? shiftCalendarYear(period.finalsStartDate, 1) : undefined,
+      finalsEndDate: period.finalsEndDate ? shiftCalendarYear(period.finalsEndDate, 1) : undefined,
+      workStudyEligible: isWorkStudyEligiblePeriod(period),
     };
   });
   return {
