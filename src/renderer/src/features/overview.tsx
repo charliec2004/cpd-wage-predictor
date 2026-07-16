@@ -273,14 +273,27 @@ export function Overview({ year, forecast, asOfDate, scenarioId, onAsOfDateChang
           <section className="mt-5 overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="budget-status-heading">
             <div className="grid gap-6 px-5 py-5 lg:grid-cols-[minmax(280px,1.25fr)_minmax(420px,1fr)] lg:items-center">
               <div>
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex items-end justify-between gap-4">
                   <div>
                     <h2 id="budget-status-heading" className="text-[12px] font-medium text-muted-foreground">Projected CPD cost</h2>
                     <div className={`mt-1 font-mono text-[30px] font-semibold tracking-tight tabular-nums ${overBudget ? 'text-destructive' : ''}`}>{formatCurrency(forecast.totals.cpdCostCents)}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-[11px] text-muted-foreground">Remaining</div>
-                    <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overBudget ? 'text-destructive' : 'text-[hsl(var(--success-accent))]'}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
+                  <div className="flex items-end gap-5">
+                    <Field label="Annual budget" className="w-32 text-left">
+                      <MoneyInput
+                        aria-label="Student-worker budget"
+                        className="h-8 text-right"
+                        value={budgetDraft}
+                        onValueChange={(value) => {
+                          setBudgetDraft(value);
+                          commitBudget(value);
+                        }}
+                      />
+                    </Field>
+                    <div className="pb-0.5 text-right">
+                      <div className="text-[11px] text-muted-foreground">Remaining</div>
+                      <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overBudget ? 'text-destructive' : 'text-[hsl(var(--success-accent))]'}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
+                    </div>
                   </div>
                 </div>
                 <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-800">
