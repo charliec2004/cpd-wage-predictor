@@ -65,7 +65,7 @@ export default function App() {
   const latestYear = [...workspace.fiscalYears].sort((a, b) => b.endDate.localeCompare(a.endDate))[0] ?? year;
   const nextStartYear = Number(latestYear.startDate.slice(0, 4)) + 1;
   const nextFiscalYearLabel = `FY ${nextStartYear}–${String(nextStartYear + 1).slice(-2)}`;
-  const forecastRange = calculateForecastRange(year, asOfDate);
+  const forecastRange = calculateForecastRange(year, asOfDate, scenarioId);
   const forecast = scenarioId
     ? calculateForecast(year, asOfDate, scenarioId, 'expected')
     : forecastRange.expected;

@@ -54,6 +54,7 @@ export function formatShortDate(date: string): string {
 }
 
 export function formatDateRange(startDate: string, endDate: string): string {
+  if (startDate === endDate) return formatShortDate(startDate);
   return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`;
 }
 

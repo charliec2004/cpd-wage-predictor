@@ -32,6 +32,7 @@ function stateBadge(row: WeeklyForecastRow) {
   if (row.state === 'corrected') return <Badge variant="outline">Corrected hours</Badge>;
   if (row.state === 'mixed') return <Badge className="border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-300">This week</Badge>;
   if (row.state === 'estimated') return <Badge className="border-dashed border-surface-500 bg-transparent text-foreground">Estimated</Badge>;
+  if (row.state === 'closed') return <Badge variant="outline">Closed</Badge>;
   if (row.state === 'missing') return <Badge variant="outline" className="border-dashed">Not forecast</Badge>;
   if (row.state === 'scenario') return <Badge className="border-dashed">Scenario</Badge>;
   return <Badge variant="secondary">Scheduled</Badge>;
@@ -293,6 +294,8 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
   });
   const missingPeriods = forecast.coverage.filter((period) => period.status === 'missing');
   const hasPlanningRange = forecastRange.low.totals.cpdCostCents !== forecastRange.high.totals.cpdCostCents;
+  const remainingRangeLow = forecastRange.high.totals.remainingBudgetCents;
+  const remainingRangeHigh = forecastRange.low.totals.remainingBudgetCents;
 
   return (
     <div className="mx-auto max-w-[1180px] animate-fade-in pb-8">
@@ -383,18 +386,22 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
                   )}
                 </div>
                 <div className="min-w-0 md:pl-6">
-                  <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Remaining at the end of the fiscal year' : 'Partial balance'}</div>
+                  <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Expected remaining at fiscal year end' : 'Partial balance'}</div>
                   <div className={`mt-1 font-mono text-[24px] font-semibold tracking-tight tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
+                  {forecast.complete && hasPlanningRange && (
+                    <div className="mt-1.5 text-[10px] text-muted-foreground">
+                      Planning range <span className="font-mono font-medium tabular-nums text-foreground">{formatCurrency(remainingRangeLow)} – {formatCurrency(remainingRangeHigh)}</span>
+                    </div>
+                  )}
                 </div>
               </div>
               <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-800">
                 <div className={`h-full rounded-full ${overallHealthPresentation.bar}`} style={{ width: `${progressWidth}%` }} />
               </div>
               <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground"><span>{spendRatio.toFixed(1)}% used</span><span>{formatCurrency(year.budgetCents)} total</span></div>
-              <div className="mt-4 grid grid-cols-2 gap-y-4 border-t border-border pt-4 sm:grid-cols-4 sm:divide-x sm:divide-border">
+              <div className="mt-4 grid grid-cols-2 gap-y-4 border-t border-border pt-4 sm:grid-cols-3 sm:divide-x sm:divide-border">
                 <div className="min-w-0 sm:pr-5"><SummaryItem label="Gross wages" value={formatCurrency(forecast.totals.grossWagesCents)} icon={<CircleDollarSign className="h-3.5 w-3.5" />} /></div>
                 <div className="min-w-0 sm:px-5"><SummaryItem label="Work-study covers" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} /></div>
-                <div className="min-w-0 sm:px-5"><SummaryItem label="Planning range" value={hasPlanningRange ? `${formatCurrency(forecastRange.low.totals.cpdCostCents)} – ${formatCurrency(forecastRange.high.totals.cpdCostCents)}` : 'Not set'} icon={<GitBranch className="h-3.5 w-3.5" />} /></div>
                 <div className="min-w-0 sm:pl-5"><SummaryItem label="Total hours" value={forecast.totals.hours.toFixed(1)} icon={<Clock3 className="h-3.5 w-3.5" />} /></div>
               </div>
             </div>

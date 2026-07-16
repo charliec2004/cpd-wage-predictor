@@ -11,6 +11,10 @@ describe('display date formatting', () => {
     expect(formatDateRange('2026-07-27', '2026-08-02')).toBe('Jul 27 – Aug 02');
   });
 
+  it('shows a one-day range as a single date', () => {
+    expect(formatDateRange('2027-05-31', '2027-05-31')).toBe('May 31');
+  });
+
   it('uses the same fixed-width style for dated labels', () => {
     expect(formatLongDate('2026-07-06')).toBe('Jul 06, 2026');
   });

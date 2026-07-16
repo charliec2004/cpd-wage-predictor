@@ -271,6 +271,22 @@ describe('calculateForecast', () => {
     expect(result.warnings).toContain('Spring 2027 has no schedule or staffing estimate.');
   });
 
+  it('clips boundary weeks to the fiscal year and identifies an all-day closure', () => {
+    const year = createFiscalYear2026();
+    year.workers = [worker(year)];
+
+    const result = calculateForecast(year, '2026-07-15');
+    const finalWeek = result.weekly.at(-1);
+
+    expect(finalWeek).toMatchObject({
+      weekStart: '2027-05-31',
+      weekEnd: '2027-05-31',
+      state: 'closed',
+      hours: 0,
+      cpdCostCents: 0,
+    });
+  });
+
   it('creates a lower/expected/higher Spring estimate from Fall and lets an exact schedule replace it', () => {
     const year = createFiscalYear2026();
     const fall = year.periods.find((period) => period.type === 'fall')!;
@@ -313,12 +329,16 @@ describe('calculateForecast', () => {
     });
 
     const range = calculateForecastRange(year, '2026-07-15');
+    const scenarioRange = calculateForecastRange(year, '2026-07-15', 'scenario-high-hiring');
     const scenario = calculateForecast(year, '2026-07-15', 'scenario-high-hiring', 'expected');
 
     expect(range.low.totals.cpdCostCents).toBe(0);
     expect(range.expected.totals.cpdCostCents).toBe(0);
     expect(range.high.totals.cpdCostCents).toBe(0);
     expect(scenario.totals.cpdCostCents).toBeGreaterThan(0);
+    expect(scenarioRange.low.totals.cpdCostCents).toBeGreaterThan(0);
+    expect(scenarioRange.expected.totals.cpdCostCents).toBe(scenario.totals.cpdCostCents);
+    expect(scenarioRange.high.totals.cpdCostCents).toBeGreaterThan(0);
   });
 
   it('splits current-period source coverage into dated past, corrected, and future ranges', () => {

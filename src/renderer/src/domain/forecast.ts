@@ -35,7 +35,7 @@ export interface DailyLedgerRow {
 export interface WeeklyForecastRow {
   weekStart: string;
   weekEnd: string;
-  state: 'assumed-worked' | 'corrected' | 'mixed' | 'scheduled' | 'estimated' | 'scenario' | 'missing';
+  state: 'assumed-worked' | 'corrected' | 'mixed' | 'scheduled' | 'estimated' | 'scenario' | 'closed' | 'missing';
   hours: number;
   grossWagesCents: number;
   outsideJobConsumptionCents: number;
@@ -608,16 +608,25 @@ export function calculateForecast(
     weeklySources.set(row.weekStart, sources);
     weeklyMap.set(row.weekStart, current);
   });
-  const weekly = Array.from(weeklyMap.values())
-    .map((week) => {
-      const sources = weeklySources.get(week.weekStart) ?? new Set<LedgerSourceKind>();
-      const crossesSeam = week.weekStart <= asOfDate && week.weekEnd > asOfDate;
-      const missing = missingPeriods.some((period) => period.startDate <= week.weekEnd && period.endDate >= week.weekStart);
+  const weekly = Array.from(weeklyMap.entries())
+    .map(([bucketStart, week]) => {
+      const bucketEnd = addDays(bucketStart, 6);
+      const visibleStart = bucketStart < year.startDate ? year.startDate : bucketStart;
+      const visibleEnd = bucketEnd > year.endDate ? year.endDate : bucketEnd;
+      const sources = weeklySources.get(bucketStart) ?? new Set<LedgerSourceKind>();
+      const crossesSeam = visibleStart <= asOfDate && visibleEnd > asOfDate;
+      const missing = missingPeriods.some((period) => period.startDate <= visibleEnd && period.endDate >= visibleStart);
+      const fullyClosed = datesBetween(visibleStart, visibleEnd).every((date) => year.closures.some(
+        (closure) => closure.date === date && closure.startMinute === undefined && closure.endMinute === undefined,
+      ));
       if (sources.has('scenario')) week.state = 'scenario';
       else if (sources.has('correction')) week.state = 'corrected';
+      else if (fullyClosed && week.hours === 0) week.state = 'closed';
       else if (sources.has('estimate')) week.state = 'estimated';
       else if (missing && week.hours === 0) week.state = 'missing';
-      else week.state = crossesSeam ? 'mixed' : week.weekEnd <= asOfDate ? 'assumed-worked' : 'scheduled';
+      else week.state = crossesSeam ? 'mixed' : visibleEnd <= asOfDate ? 'assumed-worked' : 'scheduled';
+      week.weekStart = visibleStart;
+      week.weekEnd = visibleEnd;
       return week;
     })
     .sort((a, b) => a.weekStart.localeCompare(b.weekStart));
@@ -669,12 +678,12 @@ export interface ForecastRange {
   inverted: boolean;
 }
 
-export function calculateForecastRange(year: FiscalYear, requestedAsOfDate: string): ForecastRange {
-  // The planning range describes uncertainty in unknown hours. Saved scenarios are
-  // separate staffing alternatives and must not silently redefine these bounds.
-  const low = calculateForecast(year, requestedAsOfDate, null, 'low');
-  const expected = calculateForecast(year, requestedAsOfDate, null, 'expected');
-  const high = calculateForecast(year, requestedAsOfDate, null, 'high');
+export function calculateForecastRange(year: FiscalYear, requestedAsOfDate: string, scenarioId: string | null = null): ForecastRange {
+  // The range describes uncertainty in unknown hours. When a saved scenario is
+  // selected, its staffing changes are applied consistently to all three bounds.
+  const low = calculateForecast(year, requestedAsOfDate, scenarioId, 'low');
+  const expected = calculateForecast(year, requestedAsOfDate, scenarioId, 'expected');
+  const high = calculateForecast(year, requestedAsOfDate, scenarioId, 'high');
   return {
     low,
     expected,
