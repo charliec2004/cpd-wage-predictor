@@ -71,6 +71,13 @@
     --success-notice-foreground: 141 46% 19%;
     --success-notice-muted: 141 28% 27%;
     --status-shimmer-highlight: 205 88% 68%;
+    --timeline-worked: 141 41% 31%;
+    --timeline-scheduled: 141 38% 56%;
+    --timeline-estimated: 210 16% 58%;
+    --timeline-estimated-stripe: 210 20% 75%;
+    --timeline-missing: 37 65% 47%;
+    --timeline-missing-stripe: 37 78% 67%;
+    --timeline-none: 240 5% 72%;
     --radius: 0.5rem;
     --focus-ring: 0 0 0 1px hsl(var(--ring));
   }
@@ -143,6 +150,13 @@
     --success-notice-foreground: 141 22% 92%;
     --success-notice-muted: 141 18% 78%;
     --status-shimmer-highlight: 201 100% 80%;
+    --timeline-worked: 141 41% 38%;
+    --timeline-scheduled: 145 48% 63%;
+    --timeline-estimated: 210 14% 32%;
+    --timeline-estimated-stripe: 210 18% 48%;
+    --timeline-missing: 37 48% 30%;
+    --timeline-missing-stripe: 37 60% 52%;
+    --timeline-none: 0 0% 24%;
   }
 
   html {
@@ -253,6 +267,38 @@
 
   .scrollbar-gutter-stable {
     scrollbar-gutter: stable;
+  }
+
+  .timeline-worked {
+    background-color: hsl(var(--timeline-worked));
+  }
+
+  .timeline-scheduled {
+    background-color: hsl(var(--timeline-scheduled));
+  }
+
+  .timeline-estimated {
+    background-color: hsl(var(--timeline-estimated));
+    background-image: repeating-linear-gradient(135deg, transparent 0 4px, hsl(var(--timeline-estimated-stripe)) 4px 7px);
+  }
+
+  .timeline-worked-estimated {
+    background-color: hsl(var(--timeline-worked));
+    background-image: repeating-linear-gradient(135deg, transparent 0 4px, hsl(var(--timeline-estimated)) 4px 7px);
+  }
+
+  .timeline-scheduled-estimated {
+    background-color: hsl(var(--timeline-scheduled));
+    background-image: repeating-linear-gradient(135deg, transparent 0 4px, hsl(var(--timeline-estimated)) 4px 7px);
+  }
+
+  .timeline-missing {
+    background-color: hsl(var(--timeline-missing));
+    background-image: repeating-linear-gradient(135deg, transparent 0 4px, hsl(var(--timeline-missing-stripe)) 4px 7px);
+  }
+
+  .timeline-no-staffing {
+    background-color: hsl(var(--timeline-none));
   }
 
   @media (forced-colors: active) {
