@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { CalendarDays, ChartNoAxesCombined, GitBranch, Moon, Save, Settings, Sun, UserRound, WandSparkles } from 'lucide-react';
+import { CalendarDays, ChartNoAxesCombined, ChartSpline, GitBranch, Moon, Save, Settings, Sun, UserRound, WandSparkles } from 'lucide-react';
 import type { FiscalYear, Workspace } from '../../shared/workspace';
 import type { DesktopPlatform } from '../../shared/platform';
 import { DesktopTitleBar } from '../components/layout/desktop-title-bar';
@@ -14,6 +14,7 @@ import { calculateForecast, calculateForecastRange } from './domain/forecast';
 import { todayInLosAngeles } from './domain/dates';
 import { createNextFiscalYearTemplate } from './domain/seed';
 import { Adjustments } from './features/adjustments';
+import { Forecasts } from './features/forecasts';
 import { Overview } from './features/overview';
 import { Scenarios } from './features/scenarios';
 import { Schedule } from './features/schedule';
@@ -22,14 +23,15 @@ import { Workers } from './features/workers';
 import { useTheme } from './state/use-theme';
 import { useWorkspace } from './state/use-workspace';
 
-type TabId = 'overview' | 'workers' | 'schedule' | 'adjustments' | 'scenarios';
+type TabId = 'overview' | 'workers' | 'schedule' | 'adjustments' | 'forecast' | 'scenarios';
 
 const tabs: DesktopTab[] = [
   { id: 'overview', label: 'Outlook', icon: <ChartNoAxesCombined className="h-3.5 w-3.5" /> },
   { id: 'workers', label: 'Workers', icon: <UserRound className="h-3.5 w-3.5" /> },
   { id: 'schedule', label: 'Schedule', icon: <CalendarDays className="h-3.5 w-3.5" /> },
   { id: 'adjustments', label: 'Changes', icon: <WandSparkles className="h-3.5 w-3.5" /> },
-  { id: 'scenarios', label: 'Forecasts', icon: <GitBranch className="h-3.5 w-3.5" /> },
+  { id: 'forecast', label: 'Forecast', icon: <ChartSpline className="h-3.5 w-3.5" /> },
+  { id: 'scenarios', label: 'Scenarios', icon: <GitBranch className="h-3.5 w-3.5" /> },
 ];
 
 function updateFiscalYear(workspace: Workspace, year: FiscalYear): Workspace {
@@ -42,7 +44,7 @@ export default function App() {
   const [activeTab, setActiveTab] = React.useState<TabId>('overview');
   const [settingsOpen, setSettingsOpen] = React.useState(false);
   const [addFiscalYearOpen, setAddFiscalYearOpen] = React.useState(false);
-  const [scenarioCreateRequest, setScenarioCreateRequest] = React.useState(0);
+  const [scenarioCreateOpen, setScenarioCreateOpen] = React.useState(false);
   const [changeOpenRequest, setChangeOpenRequest] = React.useState<{ key: number; workerId: string; date: string } | null>(null);
   const [scheduleViewRequest, setScheduleViewRequest] = React.useState<{ key: number; view: 'week' | 'repeating' | 'calendar' } | null>(null);
   const [asOfDate, setAsOfDate] = React.useState(todayInLosAngeles());
@@ -99,26 +101,33 @@ export default function App() {
         onOpenWorkers={() => setActiveTab('workers')}
         onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
         onOpenYearSetup={() => { setScheduleViewRequest({ key: Date.now(), view: 'calendar' }); setActiveTab('schedule'); }}
-        onOpenForecasts={() => setActiveTab('scenarios')}
+        onOpenForecasts={() => setActiveTab('forecast')}
         onAddScenario={() => {
           setActiveTab('scenarios');
-          setScenarioCreateRequest((request) => request + 1);
+          setScenarioCreateOpen(true);
         }}
       />
     ),
     workers: <Workers year={year} onChange={(workers) => updateYear((current) => ({ ...current, workers }))} />,
     schedule: <Schedule year={year} viewRequest={scheduleViewRequest} onWorkersChange={(workers) => updateYear((current) => ({ ...current, workers }))} onClosuresChange={(closures) => updateYear((current) => ({ ...current, closures }))} onPeriodsChange={(periods) => updateYear((current) => ({ ...current, periods }))} onOpenChanges={(workerId, date) => { setChangeOpenRequest({ key: Date.now(), workerId, date }); setActiveTab('adjustments'); }} />,
     adjustments: <Adjustments year={year} openRequest={changeOpenRequest} onChange={(adjustments) => updateYear((current) => ({ ...current, adjustments }))} />,
+    forecast: (
+      <Forecasts
+        workspace={workspace}
+        year={year}
+        onPeriodEstimatesChange={(periodEstimates) => updateYear((current) => ({ ...current, periodEstimates }))}
+        onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
+      />
+    ),
     scenarios: (
       <Scenarios
-        workspace={workspace}
         year={year}
         scenarioId={scenarioId}
         onScenarioChange={setScenarioId}
-        createRequestKey={scenarioCreateRequest}
+        createOpen={scenarioCreateOpen}
+        onCreateOpenChange={setScenarioCreateOpen}
         onChange={(scenarios) => updateYear((current) => ({ ...current, scenarios }))}
-        onPeriodEstimatesChange={(periodEstimates) => updateYear((current) => ({ ...current, periodEstimates }))}
-        onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}
+        onOpenForecast={() => setActiveTab('forecast')}
       />
     ),
   }[activeTab];

@@ -452,7 +452,14 @@ Every forecast total exposes:
 - fiscal timeline with forecast seam
 - top risks and upcoming staffing changes
 
-### 11.3 Workers
+### 11.3 Forecast
+
+- define the Expected projection for every fiscal period
+- show exact schedules, estimates, and dates still missing a plan
+- set lower, expected, and higher hours for unknown periods
+- keep the planning range separate from named staffing scenarios
+
+### 11.4 Workers
 
 - current, past, and planned workers
 - employment dates and wage history
@@ -461,7 +468,7 @@ Every forecast total exposes:
 - exceptions, notes, and data completeness
 - conversion of planned positions into hires
 
-### 11.4 Schedule
+### 11.5 Schedule
 
 - fiscal week selector and jump-to-today
 - recurring template editor for stable periods
@@ -471,7 +478,7 @@ Every forecast total exposes:
 - worker, day, group, and event overrides
 - selected week's total gross and CPD-funded cost
 
-### 11.5 Actuals
+### 11.6 Changes
 
 - paste/import/manual entry
 - import mapping and preview
@@ -480,14 +487,16 @@ Every forecast total exposes:
 - missing-actuals queue
 - import batch history and undo
 
-### 11.6 Scenarios
+### 11.7 Scenarios
 
 - Expected forecast plus named staffing alternatives
+- create, select, compare, and delete saved alternatives
 - add planned hire/departure/event/funding change
 - compare weekly and year-end differences
+- deleting a scenario never changes Expected, workers, schedules, or estimates
 - promote selected scenario changes into the baseline
 
-### 11.7 Year settings
+### 11.8 Year settings
 
 - fiscal dates and display-week start
 - annual budget and revisions
