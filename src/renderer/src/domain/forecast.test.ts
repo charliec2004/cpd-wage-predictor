@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { FiscalYear, Worker, WorkerSchedule } from '../../../shared/workspace';
-import { calculateForecast } from './forecast';
+import { calculateForecast, scheduledPayableMinutes } from './forecast';
 import { createFiscalYear2026, createInitialWorkspace, createNextFiscalYearTemplate, normalizeWorkspaceRules } from './seed';
 import { datesBetween } from './dates';
 
@@ -33,6 +33,20 @@ function worker(year: FiscalYear, overrides: Partial<Worker> = {}): Worker {
 }
 
 describe('calculateForecast', () => {
+  it('deducts one 30-minute unpaid break from continuous shifts longer than five hours', () => {
+    expect(scheduledPayableMinutes([{ startMinute: 480, endMinute: 780 }])).toBe(300);
+    expect(scheduledPayableMinutes([{ startMinute: 480, endMinute: 781 }])).toBe(271);
+    expect(scheduledPayableMinutes([{ startMinute: 480, endMinute: 720 }, { startMinute: 720, endMinute: 1020 }])).toBe(510);
+    expect(scheduledPayableMinutes([{ startMinute: 480, endMinute: 720 }, { startMinute: 750, endMinute: 1020 }])).toBe(510);
+    expect(scheduledPayableMinutes([{ startMinute: 480, endMinute: 720 }, { startMinute: 735, endMinute: 1020 }])).toBe(495);
+  });
+
+  it('does not deduct a second meal break when a closure already creates a 30-minute gap', () => {
+    const shift = [{ startMinute: 480, endMinute: 1020 }];
+    expect(scheduledPayableMinutes(shift, [{ id: 'break', name: 'Closed', date: '2026-09-01', startMinute: 720, endMinute: 750 }])).toBe(510);
+    expect(scheduledPayableMinutes(shift, [{ id: 'short', name: 'Closed', date: '2026-09-01', startMinute: 720, endMinute: 735 }])).toBe(495);
+  });
+
   it('makes Summer CPD-funded and applies Fall work-study dollar-for-dollar until exhaustion', () => {
     const year = createFiscalYear2026();
     year.closures = [];

@@ -278,6 +278,8 @@ From highest to lowest authority:
 
 Office availability is applied to future sources 3–6. It does not delete actuals. Any future work explicitly authorized during a closure must opt out of closure clipping and carry a note.
 
+Scheduled intervals are merged and clipped to office availability before applying the all-year meal-break rule. When a worker's scheduled time for a day exceeds five hours, one 30-minute unpaid break is deducted unless the schedule already contains a gap of at least 30 minutes. Manual day and week corrections are recorded as paid hours and are not reduced again.
+
 ### 6.6 Extra hours and events
 
 Extra event hours are additions with their own date, worker or placeholder, scenario, certainty state, and explanation. They should not require altering the worker's reusable weekly template.

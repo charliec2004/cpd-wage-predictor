@@ -73,7 +73,7 @@ export function Adjustments({ year, onChange, openRequest }: AdjustmentsProps) {
             <div className="mt-4 space-y-4">
               <Field label="Worker"><Select value={workerId} onChange={(event) => setWorkerId(event.target.value)}>{year.workers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name}</option>)}</Select></Field>
               <Field label={scope === 'day' ? 'Work date' : 'Any date in the week'} hint={scope === 'week' ? 'The replacement applies to the Monday–Sunday week.' : undefined}><DatePicker required min={year.startDate} max={year.endDate} value={date} onChange={setDate} aria-label={scope === 'day' ? 'Work date' : 'Any date in the week'} /></Field>
-              <Field label={scope === 'day' ? 'Hours actually worked that day' : 'Hours actually worked that week'}><HourInput value={hours} min={0} max={scope === 'day' ? 24 : 168} onValueChange={setHours} /></Field>
+              <Field label={scope === 'day' ? 'Paid hours that day' : 'Paid hours that week'} hint="Enter hours after unpaid meal breaks."><HourInput value={hours} min={0} max={scope === 'day' ? 24 : 168} onValueChange={setHours} /></Field>
               <Field label="Reason or note"><Input maxLength={500} placeholder="Sick, event coverage, stayed late…" value={note} onChange={(event) => setNote(event.target.value)} /></Field>
               <Button className="w-full" onClick={add}><Plus className="h-4 w-4" />Save {scope === 'day' ? 'daily correction' : 'weekly total'}</Button>
             </div>

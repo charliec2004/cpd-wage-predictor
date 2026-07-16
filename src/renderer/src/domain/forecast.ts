@@ -69,13 +69,42 @@ function overlapMinutes(startA: number, endA: number, startB: number, endB: numb
   return Math.max(0, Math.min(endA, endB) - Math.max(startA, startB));
 }
 
-function payableShiftMinutes(shift: Pick<RecurringShift, 'startMinute' | 'endMinute'>, closures: OfficeClosure[]): number {
-  let payable = shift.endMinute - shift.startMinute;
-  for (const closure of closures) {
-    if (closure.startMinute === undefined || closure.endMinute === undefined) return 0;
-    payable -= overlapMinutes(shift.startMinute, shift.endMinute, closure.startMinute, closure.endMinute);
+type ShiftInterval = Pick<RecurringShift, 'startMinute' | 'endMinute'>;
+
+function mergeShiftIntervals(shifts: ShiftInterval[]): ShiftInterval[] {
+  const sorted = shifts.slice().sort((a, b) => a.startMinute - b.startMinute || a.endMinute - b.endMinute);
+  const merged: ShiftInterval[] = [];
+  for (const shift of sorted) {
+    const previous = merged.at(-1);
+    if (previous && shift.startMinute <= previous.endMinute) previous.endMinute = Math.max(previous.endMinute, shift.endMinute);
+    else merged.push({ startMinute: shift.startMinute, endMinute: shift.endMinute });
   }
-  return Math.max(0, payable);
+  return merged;
+}
+
+function clipShiftsToOfficeAvailability(shifts: ShiftInterval[], closures: OfficeClosure[]): ShiftInterval[] {
+  let segments = mergeShiftIntervals(shifts);
+  for (const closure of closures) {
+    if (closure.startMinute === undefined || closure.endMinute === undefined) return [];
+    segments = segments.flatMap((segment) => {
+      if (overlapMinutes(segment.startMinute, segment.endMinute, closure.startMinute!, closure.endMinute!) === 0) return [segment];
+      const remaining: ShiftInterval[] = [];
+      if (closure.startMinute! > segment.startMinute) remaining.push({ startMinute: segment.startMinute, endMinute: Math.min(segment.endMinute, closure.startMinute!) });
+      if (closure.endMinute! < segment.endMinute) remaining.push({ startMinute: Math.max(segment.startMinute, closure.endMinute!), endMinute: segment.endMinute });
+      return remaining;
+    });
+  }
+  return mergeShiftIntervals(segments);
+}
+
+export function scheduledPayableMinutes(shifts: ShiftInterval[], closures: OfficeClosure[] = []): number {
+  const segments = clipShiftsToOfficeAvailability(shifts, closures);
+  const workedBeforeAutomaticBreak = segments.reduce((sum, segment) => sum + segment.endMinute - segment.startMinute, 0);
+  const includesThirtyMinuteGap = segments.some((segment, index) => {
+    const next = segments[index + 1];
+    return Boolean(next && next.startMinute - segment.endMinute >= 30);
+  });
+  return Math.max(0, workedBeforeAutomaticBreak - (workedBeforeAutomaticBreak > 300 && !includesThirtyMinuteGap ? 30 : 0));
 }
 
 function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string): { minutes: number; source: string } {
@@ -88,7 +117,7 @@ function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string):
     const dayOverride = schedule.dayOverrides?.find((override) => override.date === date);
     const shifts = dayOverride?.shifts ?? schedule.recurringShifts.filter((shift) => shift.weekday === weekday(date));
     return {
-      minutes: shifts.reduce((total, shift) => total + payableShiftMinutes(shift, closures), 0),
+      minutes: scheduledPayableMinutes(shifts, closures),
       source: closures.length > 0
         ? `${period.name} ${dayOverride ? 'day change' : 'schedule'}, clipped by closure`
         : dayOverride
@@ -98,10 +127,7 @@ function baselineMinutesForDate(year: FiscalYear, worker: Worker, date: string):
   }
   const shifts = schedule.datedShifts.filter((shift) => shift.date === date);
   return {
-    minutes: shifts.reduce((total, shift) => {
-      const recurringShape: RecurringShift = { ...shift, weekday: weekday(date) };
-      return total + payableShiftMinutes(recurringShape, closures);
-    }, 0),
+    minutes: scheduledPayableMinutes(shifts, closures),
     source: closures.length > 0 ? `${period.name} weekly plan, clipped by closure` : `${period.name} weekly plan`,
   };
 }

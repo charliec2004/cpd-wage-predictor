@@ -21,6 +21,9 @@ These decisions supersede conflicting provisional language elsewhere in the spec
 
 - Fall and Spring generally use recurring weekly schedules with exact start and end times.
 - Summer and Interterm can use week-specific schedules.
+- A continuous scheduled shift longer than five hours automatically includes one 30-minute unpaid meal break in every period of the year.
+- A recorded gap of at least 30 minutes already satisfies the unpaid-break rule and is not deducted a second time.
+- Manual day and week corrections are entered as paid hours after unpaid breaks.
 - Once time passes, the app assumes the scheduled hours were worked. No routine weekly confirmation is required.
 - The app preserves provenance so an automatically assumed value remains distinguishable from a manual correction.
 - The primary correction workflow edits a particular day or shift.

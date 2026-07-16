@@ -92,7 +92,15 @@ else:
 
 Actuals are not clipped. If actual work appears on a closed date, the engine preserves it and adds a reconciliation warning.
 
-## 6. Gross wages
+## 6. Paid scheduled time
+
+Scheduled intervals for one worker and date are merged before calculating paid time, so overlapping or adjacent entries are not double-counted. Office closures then clip the merged intervals.
+
+If the remaining scheduled work exceeds five hours and does not already contain a gap of at least 30 minutes, the engine deducts one 30-minute unpaid meal break. A gap of at least 30 minutes, including one created by a partial closure, already satisfies the rule and is not deducted again. The rule applies in every fiscal-year period, including Summer.
+
+Day and week corrections are entered as paid hours after unpaid meal breaks. Scenario placeholders that contain only average weekly hours are also treated as paid-hour estimates because they do not contain enough shift timing to infer a break.
+
+## 7. Gross wages
 
 Use integer arithmetic with minutes and cents:
 
@@ -107,7 +115,7 @@ Posted gross wages, when imported, are authoritative. The calculated amount rema
 
 An effective wage rate and a confirmed rounding policy are required for official calculated dollars. If either is missing, the affected row is `non-computable`; the engine does not substitute zero or silently choose a rounding convention.
 
-## 7. Work-study eligibility
+## 8. Work-study eligibility
 
 A wage dollar is eligible only if:
 
@@ -118,7 +126,7 @@ A wage dollar is eligible only if:
 
 Summer is the only calendar exclusion. Winter transition, Interterm, transition days, Fall and Spring finals, and every other non-Summer fiscal-year date remain eligible. The app derives this from the period type and does not expose an editable per-period eligibility toggle.
 
-## 8. Outside-job work-study consumption
+## 9. Outside-job work-study consumption
 
 Known outside use reduces remaining award before future CPD allocation according to its known date or as-of balance. Forecast outside use is applied by its timing rule and scenario.
 
@@ -137,7 +145,7 @@ for each future date:
 
 The order within the same day must be configured if it can materially change attribution. When only total remaining award is known, use that balance directly and do not double-subtract historical items.
 
-## 9. Work-study consumption, departmental offset, and CPD cost
+## 10. Work-study consumption, departmental offset, and CPD cost
 
 The student's gross-earnings cap and CPD's departmental offset are separate dimensions. Let `offsetRate` be the share of a work-study gross dollar that offsets CPD's departmental budget, expressed in basis points.
 
@@ -150,7 +158,7 @@ cpdFundedCost = cpdFundedWages + employerBurden
 
 Actual payroll can independently override gross wages, gross award consumption, departmental offset, and final department charge. Component-level authority and provenance are retained when only some values are posted. Same-day allocation order across multiple jobs remains an explicit CPD policy question.
 
-## 10. Employer burden
+## 11. Employer burden
 
 Employer burden is optional and must be clearly separated from wages. If enabled:
 
@@ -160,7 +168,7 @@ employerBurden = applicableWageBase × burdenRate
 
 The applicable wage base may be gross wages, CPD-funded wages, or a Chapman-provided department charge. No tax rate from a public webpage should be assumed to represent CPD's budget charge without confirmation.
 
-## 11. Weekly and pay-period aggregation
+## 12. Weekly and pay-period aggregation
 
 Daily ledger rows aggregate into:
 
@@ -177,7 +185,7 @@ Partial fiscal weeks include only dates inside the fiscal year. A pay period cro
 
 Pay-period or dollar-only entries that cannot be assigned to work dates remain in an `Unallocated actuals` bucket. A chosen allocation method—source-provided, proportional to accrued hours, proportional to schedule, or manual—is stored with the resulting rows. Unallocated dollars appear in fiscal totals when their fiscal ownership is known, but do not pretend to be daily or weekly facts.
 
-## 12. Scenario application
+## 13. Scenario application
 
 Scenario evaluation starts from baseline source data and applies dated events in order. Conflicting events use:
 
@@ -187,7 +195,7 @@ Scenario evaluation starts from baseline source data and applies dated events in
 
 Conflicts are reported; the engine should not silently choose when two events both replace the same hours.
 
-## 13. Low/expected/high range
+## 14. Low/expected/high range
 
 The displayed envelope at date `t` is:
 
@@ -201,7 +209,7 @@ Actual and accrued history should normally be shared across scenarios. Scenario 
 
 The app must not assume `low <= expected <= high` without validation. If user assumptions cross, show an error explaining which dates or events cause the inversion.
 
-## 14. Forecast seam and actual completeness
+## 15. Forecast seam and actual completeness
 
 The forecast seam is not merely `today`:
 
@@ -214,7 +222,7 @@ The Overview should show both calendar as-of date and `actuals complete through`
 
 Moving the as-of seam over today's mutable records is a historical recomputation. It does not reproduce what CPD knew on that earlier date. Only a saved snapshot with a source revision hash and engine version can make that claim.
 
-## 15. Budget measures
+## 16. Budget measures
 
 ```text
 authorizedBudget(as known at snapshot) = originalBudget + revisions recorded by snapshot time
@@ -230,7 +238,7 @@ If actual work-study allocation is unavailable, Posted gross wages can be factua
 
 Current corrected budget truth may include revisions with an earlier effective date but a later recorded date. Snapshot comparisons use the recorded/known timestamp so historical forecast accuracy is not rewritten by hindsight.
 
-## 16. Warnings
+## 17. Warnings
 
 Ledger and aggregate warnings include:
 
@@ -257,7 +265,7 @@ Ledger and aggregate warnings include:
 
 Warnings never change source data automatically.
 
-## 17. Explainability trace
+## 18. Explainability trace
 
 For a selected weekly amount, produce a trace such as:
 
@@ -277,7 +285,7 @@ CPD-funded cost                      $61.50
 
 Every line links to the source schedule, override, wage, award, or actual entry.
 
-## 18. Forecast accuracy history
+## 19. Forecast accuracy history
 
 Saving a forecast snapshot records:
 
@@ -290,7 +298,7 @@ Saving a forecast snapshot records:
 
 After a year closes, the app can compare snapshots against final actuals. This history can later inform better low/high assumptions without rewriting the original forecasts.
 
-## 19. Required test classes
+## 20. Required test classes
 
 - fiscal year begins or ends midweek
 - closure clips one day of recurring schedule

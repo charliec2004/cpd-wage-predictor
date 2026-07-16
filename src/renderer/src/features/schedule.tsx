@@ -29,7 +29,7 @@ import { DialogShell } from '../../components/ui/dialog-shell';
 import { Input } from '../../components/ui/input';
 import { NoticePanel } from '../../components/ui/notice-panel';
 import { Field, Select } from '../components/form-controls';
-import { calculateForecast } from '../domain/forecast';
+import { calculateForecast, scheduledPayableMinutes } from '../domain/forecast';
 import {
   addDays,
   clampDate,
@@ -426,7 +426,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
                     <div className="flex items-center gap-2"><Checkbox id={checkboxId} checked={Boolean(shift)} onCheckedChange={(checked) => setRecurringDay(day.value, checked === true)} /><label htmlFor={checkboxId} className={`text-[13px] ${shift ? 'font-medium' : 'text-muted-foreground'}`}>{day.label}</label></div>
                     <Input aria-label={`${day.label} start time`} type="time" disabled={!shift} value={shift ? minutesToTime(shift.startMinute) : '09:00'} onChange={(event) => shift && setRecurringDay(day.value, true, timeToMinutes(event.target.value), shift.endMinute)} />
                     <Input aria-label={`${day.label} end time`} type="time" disabled={!shift} value={shift ? minutesToTime(shift.endMinute) : '12:00'} onChange={(event) => shift && timeToMinutes(event.target.value) > shift.startMinute && setRecurringDay(day.value, true, shift.startMinute, timeToMinutes(event.target.value))} />
-                    <span className="text-right font-mono text-[12px] text-muted-foreground">{shift ? ((shift.endMinute - shift.startMinute) / 60).toFixed(1) : '—'}</span>
+                    <span className="text-right font-mono text-[12px] text-muted-foreground">{shift ? `${(scheduledPayableMinutes([shift]) / 60).toFixed(1)} paid` : '—'}</span>
                   </div>
                 );
               })}
