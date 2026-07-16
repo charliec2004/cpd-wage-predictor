@@ -204,10 +204,7 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
   return (
     <section className="border-t border-border px-5 py-4" aria-label="Fiscal-year hours">
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
-          <h2 className="text-[13px] font-semibold">Hours through the fiscal year</h2>
-          <span className="text-[10px] text-muted-foreground">Current projection sources</span>
-        </div>
+        <h2 className="text-[13px] font-semibold">Hours through the fiscal year</h2>
         <div className="font-mono text-[10px] text-muted-foreground">As of {formatLongDate(asOfDate)}</div>
       </div>
       <div className="grid grid-cols-12">
