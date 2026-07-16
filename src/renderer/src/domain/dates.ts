@@ -1,4 +1,5 @@
 const DAY_MS = 86_400_000;
+const SHORT_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 
 export function parseIsoDate(date: string): Date {
   return new Date(`${date}T00:00:00.000Z`);
@@ -47,14 +48,17 @@ export function clampDate(date: string, startDate: string, endDate: string): str
 }
 
 export function formatShortDate(date: string): string {
-  return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }).format(parseIsoDate(date));
+  const [year, month, day] = date.split('-');
+  const monthLabel = SHORT_MONTHS[Number(month) - 1];
+  return year && monthLabel && day ? `${monthLabel} ${day}` : date;
+}
+
+export function formatDateRange(startDate: string, endDate: string): string {
+  return `${formatShortDate(startDate)} – ${formatShortDate(endDate)}`;
 }
 
 export function formatLongDate(date: string): string {
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-    timeZone: 'UTC',
-  }).format(parseIsoDate(date));
+  const [year, month, day] = date.split('-');
+  const monthLabel = SHORT_MONTHS[Number(month) - 1];
+  return year && monthLabel && day ? `${monthLabel} ${day}, ${year}` : date;
 }

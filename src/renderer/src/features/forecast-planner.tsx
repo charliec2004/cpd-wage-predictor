@@ -13,7 +13,7 @@ import {
   createNoStaffingEstimate,
   createPeriodEstimateFromComparable,
 } from '../domain/period-estimates';
-import { formatShortDate, todayInLosAngeles } from '../domain/dates';
+import { formatDateRange, todayInLosAngeles } from '../domain/dates';
 
 interface ForecastPlannerProps {
   workspace: Workspace;
@@ -141,13 +141,13 @@ export function ForecastPlanner({ workspace, year, onChange, onOpenSchedule }: F
           const canEstimate = hasSavedEstimate || (item.status !== 'worked' && item.status !== 'worked-and-scheduled' && item.status !== 'scheduled');
           return (
             <div key={item.periodId} className="grid grid-cols-[minmax(170px,1fr)_145px_minmax(220px,1.25fr)_130px] items-center gap-3 px-4 py-3">
-              <div><div className="text-[12px] font-semibold">{item.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{formatShortDate(item.startDate)}–{formatShortDate(item.endDate)}</div></div>
+              <div><div className="text-[12px] font-semibold">{item.name}</div><div className="mt-0.5 font-mono text-[10px] text-muted-foreground">{formatDateRange(item.startDate, item.endDate)}</div></div>
               <div><Badge className={presentation.className}>{presentation.label}</Badge></div>
               <div className="min-w-0">
                 <div className="truncate text-[11px] font-medium">{item.sourceLabel}</div>
                 <div className="mt-0.5 text-[10px] text-muted-foreground">{item.status === 'estimated' || item.status === 'scheduled-and-estimated' ? `${((item.lowWeeklyMinutes ?? 0) / 60).toFixed(1)}–${((item.highWeeklyMinutes ?? 0) / 60).toFixed(1)}h/week · ${((item.expectedWeeklyMinutes ?? 0) / 60).toFixed(1)} expected` : presentation.detail}</div>
                 <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-1 font-mono text-[9px] text-muted-foreground">
-                  {itemSegments.slice(0, 4).map((segment) => <span key={`${segment.startDate}-${segment.state}`}>{formatShortDate(segment.startDate)}–{formatShortDate(segment.endDate)} · {segmentLabels[segment.state]}</span>)}
+                  {itemSegments.slice(0, 4).map((segment) => <span key={`${segment.startDate}-${segment.state}`}>{formatDateRange(segment.startDate, segment.endDate)} · {segmentLabels[segment.state]}</span>)}
                   {itemSegments.length > 4 && <span>+{itemSegments.length - 4} more ranges</span>}
                 </div>
               </div>
@@ -164,7 +164,7 @@ export function ForecastPlanner({ workspace, year, onChange, onOpenSchedule }: F
         open={Boolean(period && draft)}
         onClose={() => setOpenPeriodId(null)}
         title={period ? `Plan ${period.name}` : 'Plan period'}
-        description={period ? `${formatShortDate(period.startDate)}–${formatShortDate(period.endDate)} · This estimate fills only dates without an exact schedule.` : undefined}
+        description={period ? `${formatDateRange(period.startDate, period.endDate)} · This estimate fills only dates without an exact schedule.` : undefined}
         widthClassName="max-w-2xl"
         footerClassName="justify-between"
         footer={

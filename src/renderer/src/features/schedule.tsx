@@ -33,6 +33,7 @@ import { calculateForecast, scheduledPayableMinutes } from '../domain/forecast';
 import {
   addDays,
   clampDate,
+  formatDateRange,
   formatLongDate,
   formatShortDate,
   isWithin,
@@ -329,7 +330,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
             <div className="flex items-center gap-2">
               <Button variant="outline" size="icon-sm" aria-label="Previous week" disabled={addDays(weekStart, -1) < year.startDate} onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
               <div className="min-w-48 text-center">
-                <div className="text-[13px] font-semibold">{formatShortDate(weekStart)}–{formatShortDate(weekEnd)}</div>
+                <div className="font-mono text-[13px] font-semibold">{formatDateRange(weekStart, weekEnd)}</div>
                 <div className="mt-0.5 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground">
                   {weekContextLabels.map((label) => <span key={label}>{label}</span>).reduce<React.ReactNode[]>((parts, item, index) => index === 0 ? [item] : [...parts, <span key={`dot-${index}`}>·</span>, item], [])}
                 </div>
@@ -411,7 +412,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
         <section className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex flex-wrap items-end gap-3 border-b border-border bg-surface-900/55 p-4">
             <Field label="Worker" className="min-w-52 flex-1"><Select value={workerId} onChange={(event) => setWorkerId(event.target.value)}>{year.workers.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name}</option>)}</Select></Field>
-            <Field label="Repeating period" className="min-w-52 flex-1"><Select value={periodId} onChange={(event) => setPeriodId(event.target.value)}>{recurringPeriods.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {formatShortDate(candidate.startDate)}–{formatShortDate(candidate.endDate)}</option>)}</Select></Field>
+            <Field label="Repeating period" className="min-w-52 flex-1"><Select value={periodId} onChange={(event) => setPeriodId(event.target.value)}>{recurringPeriods.map((candidate) => <option key={candidate.id} value={candidate.id}>{candidate.name} · {formatDateRange(candidate.startDate, candidate.endDate)}</option>)}</Select></Field>
             {period && <Badge variant="outline" className="mb-1">Repeats weekly</Badge>}
           </div>
           {schedule && period?.scheduleMode === 'recurring' ? (

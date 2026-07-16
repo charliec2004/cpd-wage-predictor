@@ -93,7 +93,7 @@ export function DatePicker({
           className={cn('h-8 w-full justify-start px-2.5 text-left font-normal', !selected && 'text-muted-foreground', className)}
         >
           <CalendarDays className="h-3.5 w-3.5 text-muted-foreground" />
-          <span className="min-w-0 flex-1 truncate">{selected ? format(selected, 'MMM d, yyyy') : placeholder}</span>
+          <span className="min-w-0 flex-1 truncate font-mono">{selected ? format(selected, 'MMM dd, yyyy') : placeholder}</span>
           <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
         </Button>
       </Popover.Trigger>

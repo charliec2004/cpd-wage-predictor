@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
 import type { ForecastCoverageSegment, ForecastRange, ForecastResult, WeeklyForecastRow } from '../domain/forecast';
-import { addDays, formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
+import { addDays, formatDateRange, formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 import { Field, MoneyInput } from '../components/form-controls';
 import { budgetHealth, type BudgetHealth } from '../domain/budget-health';
@@ -135,7 +135,7 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
         <div className="border-b border-border p-5 lg:border-b-0 lg:border-r">
           <div className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground"><CalendarRange className="h-4 w-4" />As of {formatShortDate(asOfDate)}</div>
           <div className="mt-3 text-[20px] font-semibold tracking-tight">{currentPeriod ? `${currentPeriod.name}${currentIsFinals ? ' · Finals' : ''}` : 'Outside this fiscal year'}</div>
-          {currentPeriod && <div className="mt-1 text-[12px] text-muted-foreground">{formatShortDate(currentPeriod.startDate)}–{formatShortDate(currentPeriod.endDate)}</div>}
+          {currentPeriod && <div className="mt-1 font-mono text-[12px] text-muted-foreground">{formatDateRange(currentPeriod.startDate, currentPeriod.endDate)}</div>}
           <div className="mt-5 grid grid-cols-2 gap-x-5 gap-y-4">
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">Work-study</div><div className={`mt-1 text-[12px] font-semibold ${currentUsesWorkStudy ? '' : 'text-muted-foreground'}`}>{currentUsesWorkStudy ? 'Available now' : 'Not available · Summer'}</div></div>
             <div><div className="text-[10px] uppercase tracking-[0.07em] text-muted-foreground">FY remaining</div><div className="mt-1 font-mono text-[12px] font-semibold">{remainingDays} days</div></div>
@@ -163,8 +163,8 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
                 <div key={period.id} className={`grid grid-cols-[minmax(160px,1.15fr)_minmax(150px,1fr)_minmax(150px,1fr)] items-center gap-3 px-5 py-2.5 text-[11px] ${current ? 'bg-[hsl(var(--action-primary)/0.08)]' : ''}`}>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2"><span className="truncate text-[12px] font-semibold">{period.name}</span>{current && <Badge className="border-[hsl(var(--action-primary-border)/0.45)] bg-[hsl(var(--action-primary)/0.12)] text-[hsl(var(--success-accent))]">Current</Badge>}</div>
-                    <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{formatShortDate(period.startDate)}–{formatShortDate(period.endDate)}</div>
-                    {period.finalsStartDate && period.finalsEndDate && <div className="mt-0.5 text-[9px] text-muted-foreground">Finals · {formatShortDate(period.finalsStartDate)}–{formatShortDate(period.finalsEndDate)}</div>}
+                    <div className="mt-0.5 font-mono text-[9px] text-muted-foreground">{formatDateRange(period.startDate, period.endDate)}</div>
+                    {period.finalsStartDate && period.finalsEndDate && <div className="mt-0.5 text-[9px] text-muted-foreground">Finals · {formatDateRange(period.finalsStartDate, period.finalsEndDate)}</div>}
                   </div>
                   <div className="text-muted-foreground">{period.scheduleMode === 'recurring' ? 'Repeats each week' : 'Enter week by week'}</div>
                   <div className={`flex items-center gap-2 font-medium ${workStudyAvailable ? '' : 'text-muted-foreground'}`}>
@@ -217,7 +217,7 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
         {coverageSegments.map((segment) => {
           const left = Math.max(0, ((parseIsoDate(segment.startDate).getTime() - start) / (end - start)) * 100);
           const right = Math.min(100, ((parseIsoDate(addDays(segment.endDate, 1)).getTime() - start) / (end - start)) * 100);
-          return <div key={`${segment.periodId}-${segment.startDate}-${segment.state}`} title={`${segment.periodName} · ${formatShortDate(segment.startDate)}–${formatShortDate(segment.endDate)} · ${segment.sourceLabel}`} className={`absolute inset-y-0 ${coverageBarClass[segment.state]}`} style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }} />;
+          return <div key={`${segment.periodId}-${segment.startDate}-${segment.state}`} title={`${segment.periodName} · ${formatDateRange(segment.startDate, segment.endDate)} · ${segment.sourceLabel}`} className={`absolute inset-y-0 ${coverageBarClass[segment.state]}`} style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }} />;
         })}
         <div className="absolute inset-y-0 w-px bg-foreground" style={{ left: `${seam}%` }} />
       </div>
@@ -399,7 +399,7 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
                 </tr></thead>
                 <tbody>{rows.map((row) => (
                   <tr key={row.weekStart} className={row.state === 'mixed' ? 'bg-warning-500/[0.07]' : 'hover:bg-surface-900/55'}>
-                    <td className="border-b border-border px-3 py-2 font-mono text-[11px]">{formatShortDate(row.weekStart)}–{formatShortDate(row.weekEnd)}</td>
+                    <td className="whitespace-nowrap border-b border-border px-3 py-2 font-mono text-[11px] tabular-nums">{formatDateRange(row.weekStart, row.weekEnd)}</td>
                     <td className="border-b border-border px-3 py-2">{stateBadge(row)}</td>
                     <td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.state === 'missing' ? '—' : row.hours.toFixed(1)}</td>
                     <td className="border-b border-border px-3 py-2 text-right font-mono tabular-nums">{row.state === 'missing' ? '—' : formatCurrencyPrecise(row.grossWagesCents)}</td>
