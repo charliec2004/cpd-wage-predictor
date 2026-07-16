@@ -248,8 +248,8 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
 function SummaryItem({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
   return (
     <div className="min-w-0">
-      <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">{icon}{label}</div>
-      <div className="mt-1 font-mono text-[15px] font-semibold tabular-nums">{value}</div>
+      <div className="flex items-center gap-1.5 whitespace-nowrap text-[10px] font-medium text-muted-foreground">{icon}{label}</div>
+      <div className="mt-1 whitespace-nowrap font-mono text-[14px] font-semibold tabular-nums">{value}</div>
     </div>
   );
 }
@@ -345,41 +345,42 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
           )}
 
           <section className="mt-5 overflow-hidden rounded-lg border border-border bg-card" aria-labelledby="budget-status-heading">
-            <div className="grid gap-6 px-5 py-5 lg:grid-cols-[minmax(280px,1.25fr)_minmax(420px,1fr)] lg:items-center">
-              <div>
-                <div className="flex items-end justify-between gap-4">
-                  <div>
-                    <h2 id="budget-status-heading" className="text-[12px] font-medium text-muted-foreground">{forecast.complete ? 'Expected CPD cost' : 'Entered CPD projection'}</h2>
-                    <div className={`mt-1 font-mono text-[30px] font-semibold tracking-tight tabular-nums ${overBudget ? 'text-destructive' : ''}`}>{formatCurrency(forecast.totals.cpdCostCents)}</div>
-                  </div>
-                  <div className="flex items-end gap-5">
-                    <Field label="Annual budget" className="w-32 text-left">
-                      <MoneyInput
-                        aria-label="Student-worker budget"
-                        className="h-8 text-right"
-                        value={budgetDraft}
-                        onValueChange={(value) => {
-                          setBudgetDraft(value);
-                          commitBudget(value);
-                        }}
-                      />
-                    </Field>
-                    <div className="pb-0.5 text-right">
-                      <div className="flex items-center justify-end gap-1.5 text-[11px] text-muted-foreground"><span>{forecast.complete ? 'Remaining' : 'Partial balance'}</span><span aria-hidden="true">·</span><span className={overallHealthPresentation.text}>{overallHealthPresentation.label}</span></div>
-                      <div className={`mt-1 font-mono text-[18px] font-semibold tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
-                    </div>
-                  </div>
+            <div className="px-5 py-5">
+              <div className="grid gap-5 md:grid-cols-[1.2fr_1fr_1fr] md:gap-0 md:divide-x md:divide-border">
+                <div className="min-w-0 md:pr-6">
+                  <h2 id="budget-status-heading" className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Expected CPD cost' : 'Entered CPD projection'}</h2>
+                  <div className={`mt-1 font-mono text-[30px] font-semibold tracking-tight tabular-nums ${overBudget ? 'text-destructive' : ''}`}>{formatCurrency(forecast.totals.cpdCostCents)}</div>
                 </div>
-                <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-800">
-                  <div className={`h-full rounded-full ${overallHealthPresentation.bar}`} style={{ width: `${progressWidth}%` }} />
+                <div className="min-w-0 md:px-6">
+                  <Field label="Annual budget" className="max-w-44 text-left">
+                    <MoneyInput
+                      aria-label="Student-worker budget"
+                      className="h-9 text-right font-mono tabular-nums"
+                      value={budgetDraft}
+                      onValueChange={(value) => {
+                        setBudgetDraft(value);
+                        commitBudget(value);
+                      }}
+                    />
+                  </Field>
                 </div>
-                <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground"><span>{spendRatio.toFixed(1)}% used</span><span>{formatCurrency(year.budgetCents)} budget</span></div>
+                <div className="min-w-0 md:pl-6">
+                  <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
+                    <span>{forecast.complete ? 'Remaining' : 'Partial balance'}</span>
+                    <Badge variant="outline" className={overallHealthPresentation.text}>{overallHealthPresentation.label}</Badge>
+                  </div>
+                  <div className={`mt-1 font-mono text-[24px] font-semibold tracking-tight tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-5 border-t border-border pt-5 sm:grid-cols-4 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
-                <SummaryItem label="Gross wages" value={formatCurrency(forecast.totals.grossWagesCents)} icon={<CircleDollarSign className="h-3.5 w-3.5" />} />
-                <SummaryItem label="Work-study" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} />
-                <SummaryItem label="Planning range" value={hasPlanningRange ? `${formatCurrency(forecastRange.low.totals.cpdCostCents)}–${formatCurrency(forecastRange.high.totals.cpdCostCents)}` : 'Not set'} icon={<GitBranch className="h-3.5 w-3.5" />} />
-                <SummaryItem label="Hours" value={forecast.totals.hours.toFixed(1)} icon={<Clock3 className="h-3.5 w-3.5" />} />
+              <div className="mt-4 h-2 overflow-hidden rounded-full bg-surface-800">
+                <div className={`h-full rounded-full ${overallHealthPresentation.bar}`} style={{ width: `${progressWidth}%` }} />
+              </div>
+              <div className="mt-2 flex justify-between font-mono text-[10px] text-muted-foreground"><span>{spendRatio.toFixed(1)}% used</span><span>{formatCurrency(year.budgetCents)} total</span></div>
+              <div className="mt-4 grid grid-cols-2 gap-y-4 border-t border-border pt-4 sm:grid-cols-4 sm:divide-x sm:divide-border">
+                <div className="min-w-0 sm:pr-5"><SummaryItem label="Gross wages" value={formatCurrency(forecast.totals.grossWagesCents)} icon={<CircleDollarSign className="h-3.5 w-3.5" />} /></div>
+                <div className="min-w-0 sm:px-5"><SummaryItem label="Work-study covers" value={formatCurrency(forecast.totals.workStudyCoveredCents)} icon={<WalletCards className="h-3.5 w-3.5" />} /></div>
+                <div className="min-w-0 sm:px-5"><SummaryItem label="Planning range" value={hasPlanningRange ? `${formatCurrency(forecastRange.low.totals.cpdCostCents)} – ${formatCurrency(forecastRange.high.totals.cpdCostCents)}` : 'Not set'} icon={<GitBranch className="h-3.5 w-3.5" />} /></div>
+                <div className="min-w-0 sm:pl-5"><SummaryItem label="Total hours" value={forecast.totals.hours.toFixed(1)} icon={<Clock3 className="h-3.5 w-3.5" />} /></div>
               </div>
             </div>
             <ForecastRunway year={year} forecast={forecast} />
