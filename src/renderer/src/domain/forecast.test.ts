@@ -83,7 +83,7 @@ describe('calculateForecast', () => {
     expect(winterRow.cpdCostCents).toBe(0);
   });
 
-  it('migrates legacy transition eligibility and Post-Spring Summer classification', () => {
+  it('migrates legacy transition eligibility and keeps the pre-Summer fiscal close eligible', () => {
     const workspace = createInitialWorkspace();
     const year = workspace.fiscalYears[0]!;
     const winter = year.periods.find((period) => period.type === 'winter')!;
@@ -95,7 +95,27 @@ describe('calculateForecast', () => {
 
     const normalized = normalizeWorkspaceRules(workspace).fiscalYears[0]!;
     expect(normalized.periods.find((period) => period.type === 'winter')?.workStudyEligible).toBe(true);
-    expect(normalized.periods.at(-1)).toMatchObject({ name: 'Summer 2027 / FY close', type: 'summer', workStudyEligible: false });
+    expect(normalized.periods.at(-1)).toMatchObject({ name: 'Spring/Summer transition', type: 'transition', workStudyEligible: true });
+  });
+
+  it('uses Chapman FY 2026–27 semester, finals, transition, and winter-closure dates', () => {
+    const year = createFiscalYear2026();
+    expect(year.periods).toEqual(expect.arrayContaining([
+      expect.objectContaining({ name: 'Summer 2026', startDate: '2026-06-01', endDate: '2026-08-22', type: 'summer' }),
+      expect.objectContaining({ name: 'Fall 2026', startDate: '2026-08-24', endDate: '2026-12-12', finalsStartDate: '2026-12-07', finalsEndDate: '2026-12-12' }),
+      expect.objectContaining({ name: 'Interterm 2027', startDate: '2027-01-04', endDate: '2027-01-30' }),
+      expect.objectContaining({ name: 'Spring 2027', startDate: '2027-02-01', endDate: '2027-05-22', finalsStartDate: '2027-05-17', finalsEndDate: '2027-05-22' }),
+      expect.objectContaining({ name: 'Spring/Summer transition', startDate: '2027-05-23', endDate: '2027-05-31', type: 'transition', workStudyEligible: true }),
+    ]));
+    expect(year.closures.filter((closure) => closure.name === 'Winter closure').map((closure) => closure.date)).toEqual([
+      '2026-12-24',
+      '2026-12-25',
+      '2026-12-28',
+      '2026-12-29',
+      '2026-12-30',
+      '2026-12-31',
+      '2027-01-01',
+    ]);
   });
 
   it('carries fiscal calendar and finals configuration into the next-year template', () => {

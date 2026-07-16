@@ -18,9 +18,18 @@ export function createFiscalYear2026(): FiscalYear {
         name: 'Summer 2026',
         type: 'summer',
         startDate: '2026-06-01',
-        endDate: '2026-08-23',
+        endDate: '2026-08-22',
         scheduleMode: 'week-specific',
         workStudyEligible: false,
+      },
+      {
+        id: 'period-summer-fall-transition-2026',
+        name: 'Summer/Fall transition',
+        type: 'transition',
+        startDate: '2026-08-23',
+        endDate: '2026-08-23',
+        scheduleMode: 'week-specific',
+        workStudyEligible: true,
       },
       {
         id: 'period-fall-2026',
@@ -72,13 +81,13 @@ export function createFiscalYear2026(): FiscalYear {
         finalsEndDate: '2027-05-22',
       },
       {
-        id: 'period-close-2027',
-        name: 'Summer 2027 / FY close',
-        type: 'summer',
+        id: 'period-spring-summer-transition-2027',
+        name: 'Spring/Summer transition',
+        type: 'transition',
         startDate: '2027-05-23',
         endDate: '2027-05-31',
         scheduleMode: 'week-specific',
-        workStudyEligible: false,
+        workStudyEligible: true,
       },
     ],
     closures: [
@@ -90,6 +99,9 @@ export function createFiscalYear2026(): FiscalYear {
       { id: 'closure-thanksgiving-friday-2026', name: 'Thanksgiving Friday', date: '2026-11-27' },
       { id: 'closure-christmas-eve-2026', name: 'Winter closure', date: '2026-12-24' },
       { id: 'closure-christmas-2026', name: 'Winter closure', date: '2026-12-25' },
+      { id: 'closure-winter-2026-12-28', name: 'Winter closure', date: '2026-12-28' },
+      { id: 'closure-winter-2026-12-29', name: 'Winter closure', date: '2026-12-29' },
+      { id: 'closure-winter-2026-12-30', name: 'Winter closure', date: '2026-12-30' },
       { id: 'closure-new-year-eve-2026', name: 'Winter closure', date: '2026-12-31' },
       { id: 'closure-new-year-2027', name: 'Winter closure', date: '2027-01-01' },
       { id: 'closure-mlk-2027', name: 'Martin Luther King Jr. Day', date: '2027-01-18' },
@@ -152,9 +164,9 @@ export function normalizeWorkspaceRules(workspace: Workspace): Workspace {
         const nextPeriod: AcademicPeriod = legacyPostSpring
           ? {
               ...period,
-              name: `Summer ${period.endDate.slice(0, 4)} / FY close`,
-              type: 'summer',
-              workStudyEligible: false,
+              name: 'Spring/Summer transition',
+              type: 'transition',
+              workStudyEligible: true,
             }
           : { ...period, workStudyEligible: isWorkStudyEligiblePeriod(period) };
         return { ...nextPeriod, ...defaultFinalsDates(year, nextPeriod) };
