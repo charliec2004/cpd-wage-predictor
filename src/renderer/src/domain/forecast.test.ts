@@ -294,6 +294,33 @@ describe('calculateForecast', () => {
     expect(exact.daily.find((row) => row.date === springMonday)).toMatchObject({ minutes: 120, sourceKind: 'schedule', state: 'scheduled' });
   });
 
+  it('keeps saved staffing scenarios separate from the planning range', () => {
+    const year = createFiscalYear2026();
+    year.workers = [];
+    year.scenarios.push({
+      id: 'scenario-high-hiring',
+      name: 'Hire more students',
+      description: '',
+      role: 'prudent-high',
+      plannedHires: [{
+        id: 'hire-1',
+        label: 'Spring hire',
+        startDate: '2027-02-01',
+        hourlyRateCents: 1_690,
+        averageWeeklyMinutes: 600,
+      }],
+      departureOverrides: [],
+    });
+
+    const range = calculateForecastRange(year, '2026-07-15');
+    const scenario = calculateForecast(year, '2026-07-15', 'scenario-high-hiring', 'expected');
+
+    expect(range.low.totals.cpdCostCents).toBe(0);
+    expect(range.expected.totals.cpdCostCents).toBe(0);
+    expect(range.high.totals.cpdCostCents).toBe(0);
+    expect(scenario.totals.cpdCostCents).toBeGreaterThan(0);
+  });
+
   it('splits current-period source coverage into dated past, corrected, and future ranges', () => {
     const year = createFiscalYear2026();
     const summer = year.periods.find((period) => period.type === 'summer')!;

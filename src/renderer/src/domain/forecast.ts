@@ -670,12 +670,11 @@ export interface ForecastRange {
 }
 
 export function calculateForecastRange(year: FiscalYear, requestedAsOfDate: string): ForecastRange {
-  const lowScenario = year.scenarios.find((scenario) => scenario.role === 'plausible-low');
-  const expectedScenario = year.scenarios.find((scenario) => scenario.role === 'expected');
-  const highScenario = year.scenarios.find((scenario) => scenario.role === 'prudent-high');
-  const low = calculateForecast(year, requestedAsOfDate, lowScenario?.id ?? null, 'low');
-  const expected = calculateForecast(year, requestedAsOfDate, expectedScenario?.id ?? null, 'expected');
-  const high = calculateForecast(year, requestedAsOfDate, highScenario?.id ?? null, 'high');
+  // The planning range describes uncertainty in unknown hours. Saved scenarios are
+  // separate staffing alternatives and must not silently redefine these bounds.
+  const low = calculateForecast(year, requestedAsOfDate, null, 'low');
+  const expected = calculateForecast(year, requestedAsOfDate, null, 'expected');
+  const high = calculateForecast(year, requestedAsOfDate, null, 'high');
   return {
     low,
     expected,

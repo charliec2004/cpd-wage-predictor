@@ -66,14 +66,8 @@ export default function App() {
   const nextStartYear = Number(latestYear.startDate.slice(0, 4)) + 1;
   const nextFiscalYearLabel = `FY ${nextStartYear}–${String(nextStartYear + 1).slice(-2)}`;
   const forecastRange = calculateForecastRange(year, asOfDate);
-  const selectedScenario = year.scenarios.find((scenario) => scenario.id === scenarioId);
-  const selectedVariant = selectedScenario?.role === 'plausible-low'
-    ? 'low'
-    : selectedScenario?.role === 'prudent-high'
-      ? 'high'
-      : 'expected';
   const forecast = scenarioId
-    ? calculateForecast(year, asOfDate, scenarioId, selectedVariant)
+    ? calculateForecast(year, asOfDate, scenarioId, 'expected')
     : forecastRange.expected;
   const updateYear = (updater: (current: FiscalYear) => FiscalYear) => {
     workspaceState.updateWorkspace((current) => {
@@ -119,8 +113,9 @@ export default function App() {
       <Scenarios
         workspace={workspace}
         year={year}
+        scenarioId={scenarioId}
+        onScenarioChange={setScenarioId}
         createRequestKey={scenarioCreateRequest}
-        onScenarioCreated={setScenarioId}
         onChange={(scenarios) => updateYear((current) => ({ ...current, scenarios }))}
         onPeriodEstimatesChange={(periodEstimates) => updateYear((current) => ({ ...current, periodEstimates }))}
         onOpenSchedule={() => { setScheduleViewRequest({ key: Date.now(), view: 'week' }); setActiveTab('schedule'); }}

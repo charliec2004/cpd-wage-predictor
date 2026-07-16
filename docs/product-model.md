@@ -19,7 +19,7 @@ The app combines known history and editable future assumptions:
 - current student workers and effective-dated wages
 - work-study awards, eligibility, outside-job usage, and exhaustion
 - planned hires, departures, vacancies, and replacement assumptions
-- low, expected, and prudent-high scenarios
+- low, expected, and prudent-high planning range plus saved staffing scenarios
 
 The output is an explainable week-by-week projection of gross wages, work-study gross-award consumption, departmental offset, CPD-funded cost, remaining budget, and forecast uncertainty.
 
@@ -404,13 +404,9 @@ The baseline is the currently approved operating plan. It contains current worke
 
 ### 10.2 Named scenarios
 
-Initial scenario set:
+The Expected forecast is the shared foundation. Its low-to-high planning range expresses uncertainty in unknown future hours; those bounds are not saved staffing scenarios.
 
-- `Plausible low`: credible lower-cost outcome
-- `Expected`: best current operating forecast
-- `Prudent high`: credible higher-cost outcome used to protect the budget
-
-Scenarios inherit the baseline and store deltas rather than complete copies. A delta may add or alter a hire, departure, schedule, event, wage, work-study assumption, outside-job usage, or staffing multiplier.
+Named scenarios inherit Expected and store deltas rather than complete copies. A delta may add or alter a hire, departure, schedule, event, wage, work-study assumption, outside-job usage, or staffing multiplier. Scenario changes never silently redefine the Expected forecast or its planning range.
 
 ### 10.3 Certainty
 
@@ -486,7 +482,7 @@ Every forecast total exposes:
 
 ### 11.6 Scenarios
 
-- baseline plus named alternatives
+- Expected forecast plus named staffing alternatives
 - add planned hire/departure/event/funding change
 - compare weekly and year-end differences
 - promote selected scenario changes into the baseline

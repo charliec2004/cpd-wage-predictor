@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { ArrowRight, GitBranch, Plus, Trash2, UserPlus } from 'lucide-react';
 import type { FiscalYear, ForecastScenario, PeriodEstimate, Workspace } from '../../../shared/workspace';
+import { ActionSelect } from '../../components/ui/action-select';
 import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
@@ -17,38 +18,26 @@ import { ForecastPlanner } from './forecast-planner';
 interface ScenariosProps {
   workspace: Workspace;
   year: FiscalYear;
+  scenarioId: string | null;
+  onScenarioChange: (scenarioId: string | null) => void;
   onChange: (scenarios: ForecastScenario[]) => void;
   onPeriodEstimatesChange: (estimates: PeriodEstimate[]) => void;
   onOpenSchedule: () => void;
   createRequestKey?: number;
-  onScenarioCreated?: (scenarioId: string) => void;
 }
 
-const scenarioRoleLabels: Record<ForecastScenario['role'], string> = {
-  custom: 'Custom',
-  'plausible-low': 'Lower spending',
-  expected: 'Most likely',
-  'prudent-high': 'Higher spending',
-};
-
-export function Scenarios({ workspace, year, onChange, onPeriodEstimatesChange, onOpenSchedule, createRequestKey = 0, onScenarioCreated }: ScenariosProps) {
-  const [selectedId, setSelectedId] = React.useState(year.scenarios[0]?.id ?? '');
+export function Scenarios({ workspace, year, scenarioId, onScenarioChange, onChange, onPeriodEstimatesChange, onOpenSchedule, createRequestKey = 0 }: ScenariosProps) {
   const [createOpen, setCreateOpen] = React.useState(false);
   const [scenarioName, setScenarioName] = React.useState('');
-  const [role, setRole] = React.useState<ForecastScenario['role']>('custom');
   const [hire, setHire] = React.useState({ label: '', startDate: '', wage: '16.90', weeklyHours: 10, hasWorkStudy: true, award: '3000' });
   const [departure, setDeparture] = React.useState({ workerId: year.workers[0]?.id ?? '', endDate: '' });
-  const selected = year.scenarios.find((scenario) => scenario.id === selectedId);
+  const selectableScenarios = year.scenarios.filter((scenario) => scenario.role !== 'expected');
+  const selected = selectableScenarios.find((scenario) => scenario.id === scenarioId);
   const baseline = React.useMemo(() => calculateForecast(year, todayInLosAngeles(), null, 'expected'), [year]);
-  const scenarioVariant = selected?.role === 'plausible-low' ? 'low' : selected?.role === 'prudent-high' ? 'high' : 'expected';
   const scenarioForecast = React.useMemo(
-    () => selected ? calculateForecast(year, todayInLosAngeles(), selected.id, scenarioVariant) : baseline,
-    [baseline, scenarioVariant, selected, year],
+    () => selected ? calculateForecast(year, todayInLosAngeles(), selected.id, 'expected') : baseline,
+    [baseline, selected, year],
   );
-
-  React.useEffect(() => {
-    if (!year.scenarios.some((scenario) => scenario.id === selectedId)) setSelectedId(year.scenarios[0]?.id ?? '');
-  }, [selectedId, year.scenarios]);
 
   React.useEffect(() => {
     if (createRequestKey > 0) setCreateOpen(true);
@@ -60,15 +49,13 @@ export function Scenarios({ workspace, year, onChange, onPeriodEstimatesChange, 
       id: `scenario-${crypto.randomUUID()}`,
       name: scenarioName.trim(),
       description: '',
-      role,
+      role: 'custom',
       plannedHires: [],
       departureOverrides: [],
     };
     onChange([...year.scenarios, scenario]);
-    setSelectedId(scenario.id);
-    onScenarioCreated?.(scenario.id);
+    onScenarioChange(scenario.id);
     setScenarioName('');
-    setRole('custom');
     setCreateOpen(false);
   };
 
@@ -107,72 +94,93 @@ export function Scenarios({ workspace, year, onChange, onPeriodEstimatesChange, 
 
   return (
     <div className="animate-fade-in space-y-4">
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="text-[18px] font-semibold tracking-tight">Forecasts</h1>
-          <p className="mt-1 text-[12px] text-muted-foreground">Cover unknown periods with estimates, then test possible staffing changes.</p>
+          <p className="mt-1 text-[12px] text-muted-foreground">Build the expected forecast, then test staffing alternatives.</p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" />Add scenario</Button>
+        <div className="flex items-end gap-2">
+          <Field label="Viewing scenario" className="w-56">
+            <ActionSelect
+              ariaLabel="Viewing scenario"
+              value={selected?.id ?? ''}
+              options={[
+                { value: '', label: 'Expected forecast', description: 'Shared schedules and expected estimates' },
+                ...selectableScenarios.map((scenario) => ({ value: scenario.id, label: scenario.name, description: 'Expected forecast with staffing changes' })),
+              ]}
+              onValueChange={(value) => onScenarioChange(value || null)}
+              actionLabel="Add scenario"
+              onAction={() => setCreateOpen(true)}
+              menuClassName="w-64"
+            />
+          </Field>
+          <Button onClick={() => setCreateOpen(true)}><Plus className="h-4 w-4" />Add scenario</Button>
+        </div>
       </div>
 
-      <ForecastPlanner workspace={workspace} year={year} onChange={onPeriodEstimatesChange} onOpenSchedule={onOpenSchedule} />
-
-      <div className="flex items-end justify-between gap-4 pt-3">
-        <div>
-          <h2 className="text-[15px] font-semibold">Staffing scenarios</h2>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">Optional alternatives for hires and early departures. These sit on top of the fiscal-year coverage above.</p>
-        </div>
-      </div>
-      <div className="grid gap-4 xl:grid-cols-[300px_minmax(0,1fr)]">
-        <aside className="rounded-lg border border-border bg-card">
-          <div className="border-b border-border p-4"><div className="flex items-center gap-2"><GitBranch className="h-4 w-4 text-muted-foreground" /><h2 className="text-[13px] font-semibold">Saved scenarios</h2></div></div>
-          <div className="divide-y divide-border">
-            {year.scenarios.map((scenario) => (
-              <button key={scenario.id} type="button" onClick={() => setSelectedId(scenario.id)} className={`w-full px-4 py-3 text-left transition-colors ${scenario.id === selectedId ? 'bg-accent text-foreground' : 'hover:bg-surface-900/60'}`}><div className="flex items-center justify-between gap-2"><span className="text-[13px] font-medium">{scenario.name}</span><Badge variant="outline">{scenarioRoleLabels[scenario.role]}</Badge></div><div className="mt-1 text-[11px] text-muted-foreground">{scenario.plannedHires.length} hires · {scenario.departureOverrides.length} departures</div></button>
-            ))}
-          </div>
-        </aside>
-        {selected ? (
-          <div className="space-y-4">
-            <section className="rounded-lg border border-border bg-card">
-              <div className="grid items-center gap-4 p-4 md:grid-cols-[1fr_auto_1fr]">
-                <div><div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">Main plan CPD cost</div><div className="mt-1 font-mono text-[22px] font-semibold">{formatCurrency(baseline.totals.cpdCostCents)}</div></div>
-                <ArrowRight className="hidden h-5 w-5 text-muted-foreground md:block" />
-                <div className="md:text-right"><div className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">{selected.name} CPD cost</div><div className="mt-1 font-mono text-[22px] font-semibold">{formatCurrency(scenarioForecast.totals.cpdCostCents)}</div><div className={`mt-1 text-[11px] ${delta > 0 ? 'text-warning-700 dark:text-warning-300' : 'text-muted-foreground'}`}>{delta >= 0 ? '+' : ''}{formatCurrency(delta)} versus main plan</div></div>
-              </div>
-            </section>
-            <div className="grid gap-4 lg:grid-cols-2">
-              <section className="rounded-lg border border-border bg-card p-4">
-                <div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-muted-foreground" /><h2 className="text-[13px] font-semibold">Planned hires</h2></div>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <Field label="Position label"><Input placeholder="Spring front desk hire" value={hire.label} onChange={(event) => setHire({ ...hire, label: event.target.value })} /></Field>
-                  <Field label="Expected start"><DatePicker required min={year.startDate} max={year.endDate} value={hire.startDate} onChange={(value) => setHire({ ...hire, startDate: value })} aria-label="Expected start" /></Field>
-                  <Field label="Hourly wage"><MoneyInput value={hire.wage} onValueChange={(value) => setHire((current) => ({ ...current, wage: value }))} /></Field>
-                  <Field label="Average hours / week"><HourInput value={hire.weeklyHours} min={0} max={40} onValueChange={(value) => setHire({ ...hire, weeklyHours: value })} /></Field>
-                </div>
-                <div className="mt-3 flex items-center gap-2"><Checkbox id="scenario-hire-ws" checked={hire.hasWorkStudy} onCheckedChange={(checked) => setHire({ ...hire, hasWorkStudy: checked === true })} /><label htmlFor="scenario-hire-ws" className="text-[12px] font-medium">Assume work-study</label>{hire.hasWorkStudy && <MoneyInput aria-label="Work-study award" className="w-28" value={hire.award} onValueChange={(value) => setHire((current) => ({ ...current, award: value }))} />}</div>
-                <Button className="mt-4 w-full" variant="outline" onClick={addHire}><Plus className="h-4 w-4" />Add planned hire</Button>
-                {selected.plannedHires.length > 0 && <div className="mt-4 divide-y divide-border border-t border-border">{selected.plannedHires.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{item.label}</div><div className="font-mono text-[10px] text-muted-foreground">{item.startDate} · {(item.averageWeeklyMinutes / 60).toFixed(1)}h/week · {formatCurrencyPrecise(item.hourlyRateCents)}/hr</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove planned hire" onClick={() => updateSelected({ ...selected, plannedHires: selected.plannedHires.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
-              </section>
-              <section className="rounded-lg border border-border bg-card p-4">
-                <h2 className="text-[13px] font-semibold">Earlier departures</h2>
-                <p className="mt-1 text-[11px] leading-4 text-muted-foreground">End an existing worker's forecast earlier in this scenario only.</p>
-                <div className="mt-4 space-y-3">
-                  <Field label="Worker"><Select value={departure.workerId} onChange={(event) => setDeparture({ ...departure, workerId: event.target.value })}><option value="">Select worker</option>{year.workers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name}</option>)}</Select></Field>
-                  <Field label="Scenario end date"><DatePicker required min={year.startDate} max={year.endDate} value={departure.endDate} onChange={(value) => setDeparture({ ...departure, endDate: value })} aria-label="Scenario end date" /></Field>
-                  <Button className="w-full" variant="outline" onClick={addDeparture}><Plus className="h-4 w-4" />Set scenario departure</Button>
-                </div>
-                {selected.departureOverrides.length > 0 && <div className="mt-4 divide-y divide-border border-t border-border">{selected.departureOverrides.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{year.workers.find((worker) => worker.id === item.workerId)?.name ?? 'Unknown worker'}</div><div className="font-mono text-[10px] text-muted-foreground">Ends {item.endDate}</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove scenario departure" onClick={() => updateSelected({ ...selected, departureOverrides: selected.departureOverrides.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
-              </section>
+      <section className="rounded-lg border border-border bg-card" aria-label="Active forecast">
+        <div className="flex flex-wrap items-center justify-between gap-5 px-4 py-3.5">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <GitBranch className="h-4 w-4 text-muted-foreground" />
+              <h2 className="truncate text-[14px] font-semibold">{selected?.name ?? 'Expected forecast'}</h2>
+              <Badge variant="outline">{selected ? 'Alternative' : 'Base'}</Badge>
             </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {selected
+                ? `Starts from Expected, then applies ${selected.plannedHires.length} planned hire${selected.plannedHires.length === 1 ? '' : 's'} and ${selected.departureOverrides.length} earlier departure${selected.departureOverrides.length === 1 ? '' : 's'}.`
+                : 'The shared foundation: current workers, schedules, closures, work-study, and expected period estimates.'}
+            </p>
           </div>
-        ) : <div className="flex min-h-96 items-center justify-center rounded-lg border border-dashed border-border text-[12px] text-muted-foreground">Create a scenario to begin.</div>}
-      </div>
+          {selected ? (
+            <div className="grid shrink-0 grid-cols-[auto_auto_auto] items-center gap-4">
+              <div><div className="text-[10px] text-muted-foreground">Expected</div><div className="mt-0.5 font-mono text-[16px] font-semibold">{formatCurrency(baseline.totals.cpdCostCents)}</div></div>
+              <ArrowRight className="h-4 w-4 text-muted-foreground" />
+              <div className="text-right"><div className="text-[10px] text-muted-foreground">{selected.name}</div><div className="mt-0.5 font-mono text-[16px] font-semibold">{formatCurrency(scenarioForecast.totals.cpdCostCents)}</div><div className={`mt-0.5 text-[10px] ${delta > 0 ? 'text-warning-700 dark:text-warning-300' : 'text-muted-foreground'}`}>{delta >= 0 ? '+' : ''}{formatCurrency(delta)}</div></div>
+            </div>
+          ) : (
+            <div className="shrink-0 text-right"><div className="text-[10px] text-muted-foreground">Expected CPD cost</div><div className="mt-0.5 font-mono text-[18px] font-semibold">{formatCurrency(baseline.totals.cpdCostCents)}</div></div>
+          )}
+        </div>
+      </section>
+
+      {selected && (
+        <>
+          <div className="pt-1"><h2 className="text-[15px] font-semibold">Scenario changes</h2><p className="mt-0.5 text-[11px] text-muted-foreground">Only these changes differ from the Expected forecast.</p></div>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <section className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2"><UserPlus className="h-4 w-4 text-muted-foreground" /><h2 className="text-[13px] font-semibold">Planned hires</h2></div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <Field label="Position label"><Input placeholder="Spring front desk hire" value={hire.label} onChange={(event) => setHire({ ...hire, label: event.target.value })} /></Field>
+                <Field label="Expected start"><DatePicker required min={year.startDate} max={year.endDate} value={hire.startDate} onChange={(value) => setHire({ ...hire, startDate: value })} aria-label="Expected start" /></Field>
+                <Field label="Hourly wage"><MoneyInput value={hire.wage} onValueChange={(value) => setHire((current) => ({ ...current, wage: value }))} /></Field>
+                <Field label="Average hours / week"><HourInput value={hire.weeklyHours} min={0} max={40} onValueChange={(value) => setHire({ ...hire, weeklyHours: value })} /></Field>
+              </div>
+              <div className="mt-3 flex items-center gap-2"><Checkbox id="scenario-hire-ws" checked={hire.hasWorkStudy} onCheckedChange={(checked) => setHire({ ...hire, hasWorkStudy: checked === true })} /><label htmlFor="scenario-hire-ws" className="text-[12px] font-medium">Assume work-study</label>{hire.hasWorkStudy && <MoneyInput aria-label="Work-study award" className="w-28" value={hire.award} onValueChange={(value) => setHire((current) => ({ ...current, award: value }))} />}</div>
+              <Button className="mt-4 w-full" variant="outline" onClick={addHire}><Plus className="h-4 w-4" />Add planned hire</Button>
+              {selected.plannedHires.length > 0 && <div className="mt-4 divide-y divide-border border-t border-border">{selected.plannedHires.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{item.label}</div><div className="font-mono text-[10px] text-muted-foreground">{item.startDate} · {(item.averageWeeklyMinutes / 60).toFixed(1)}h/week · {formatCurrencyPrecise(item.hourlyRateCents)}/hr</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove planned hire" onClick={() => updateSelected({ ...selected, plannedHires: selected.plannedHires.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
+            </section>
+            <section className="rounded-lg border border-border bg-card p-4">
+              <h2 className="text-[13px] font-semibold">Earlier departures</h2>
+              <p className="mt-1 text-[11px] leading-4 text-muted-foreground">End an existing worker's forecast earlier in this scenario only.</p>
+              <div className="mt-4 space-y-3">
+                <Field label="Worker"><Select value={departure.workerId} onChange={(event) => setDeparture({ ...departure, workerId: event.target.value })}><option value="">Select worker</option>{year.workers.map((worker) => <option key={worker.id} value={worker.id}>{worker.name}</option>)}</Select></Field>
+                <Field label="Scenario end date"><DatePicker required min={year.startDate} max={year.endDate} value={departure.endDate} onChange={(value) => setDeparture({ ...departure, endDate: value })} aria-label="Scenario end date" /></Field>
+                <Button className="w-full" variant="outline" onClick={addDeparture}><Plus className="h-4 w-4" />Set scenario departure</Button>
+              </div>
+              {selected.departureOverrides.length > 0 && <div className="mt-4 divide-y divide-border border-t border-border">{selected.departureOverrides.map((item) => <div key={item.id} className="flex items-center justify-between gap-3 py-2.5"><div><div className="text-[12px] font-medium">{year.workers.find((worker) => worker.id === item.workerId)?.name ?? 'Unknown worker'}</div><div className="font-mono text-[10px] text-muted-foreground">Ends {item.endDate}</div></div><Button variant="ghost" size="icon-sm" aria-label="Remove scenario departure" onClick={() => updateSelected({ ...selected, departureOverrides: selected.departureOverrides.filter((candidate) => candidate.id !== item.id) })}><Trash2 className="h-3.5 w-3.5" /></Button></div>)}</div>}
+            </section>
+          </div>
+        </>
+      )}
+
+      <div className="pt-2"><h2 className="text-[15px] font-semibold">Expected forecast foundation</h2><p className="mt-0.5 text-[11px] text-muted-foreground">Shared by Expected and every saved scenario.</p></div>
+      <ForecastPlanner workspace={workspace} year={year} onChange={onPeriodEstimatesChange} onOpenSchedule={onOpenSchedule} />
       <DialogShell
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         title="Add scenario"
-        description="Create a saved alternative to the main staffing plan. You can add projected hires and departures next."
+        description="Create an alternative that starts from the Expected forecast. You can then add hypothetical hires and departures."
         footer={
           <>
             <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
@@ -182,14 +190,7 @@ export function Scenarios({ workspace, year, onChange, onPeriodEstimatesChange, 
       >
         <div className="space-y-4">
           <Field label="Scenario name"><Input autoFocus placeholder="Spring hiring later" value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></Field>
-          <Field label="Scenario type" hint="Choose where this plan sits compared with the main forecast.">
-            <Select value={role} onChange={(event) => setRole(event.target.value as ForecastScenario['role'])}>
-              <option value="custom">Custom alternative</option>
-              <option value="plausible-low">Lower spending</option>
-              <option value="expected">Most likely</option>
-              <option value="prudent-high">Higher spending</option>
-            </Select>
-          </Field>
+          <p className="text-[11px] leading-4 text-muted-foreground">The scenario inherits the Expected forecast. Only the hires and departures you add will differ.</p>
         </div>
       </DialogShell>
     </div>

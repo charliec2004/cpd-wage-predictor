@@ -27,13 +27,6 @@ interface OverviewProps {
   onAddScenario: () => void;
 }
 
-const scenarioRoleDescriptions: Record<FiscalYear['scenarios'][number]['role'], string> = {
-  custom: 'Custom alternative',
-  'plausible-low': 'Lower-spending forecast',
-  expected: 'Most likely forecast',
-  'prudent-high': 'Higher-spending forecast',
-};
-
 function stateBadge(row: WeeklyForecastRow) {
   if (row.state === 'assumed-worked') return <Badge variant="outline">Hours to date</Badge>;
   if (row.state === 'corrected') return <Badge variant="outline">Corrected hours</Badge>;
@@ -315,7 +308,7 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
               value={scenarioId ?? ''}
               options={[
                 { value: '', label: 'Expected forecast', description: 'Schedules plus expected estimates' },
-                ...year.scenarios.filter((scenario) => scenario.role !== 'expected').map((scenario) => ({ value: scenario.id, label: scenario.name, description: scenarioRoleDescriptions[scenario.role] })),
+                ...year.scenarios.filter((scenario) => scenario.role !== 'expected').map((scenario) => ({ value: scenario.id, label: scenario.name, description: 'Expected forecast with staffing changes' })),
               ]}
               onValueChange={(value) => onScenarioChange(value || null)}
               actionLabel="Add scenario"
