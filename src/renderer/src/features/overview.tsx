@@ -251,11 +251,11 @@ function SummaryItem({ label, value, icon }: { label: string; value: string; ico
   );
 }
 
-const budgetHealthPresentation: Record<BudgetHealth, { label: string; text: string; bar: string }> = {
-  healthy: { label: 'Healthy', text: 'text-[hsl(var(--success-accent))]', bar: 'bg-[hsl(var(--action-primary))]' },
-  watch: { label: 'Getting low', text: 'text-warning-700 dark:text-warning-300', bar: 'bg-warning-500' },
-  critical: { label: 'Critical', text: 'text-destructive', bar: 'bg-destructive' },
-  unknown: { label: 'No budget', text: 'text-muted-foreground', bar: 'bg-surface-500' },
+const budgetHealthPresentation: Record<BudgetHealth, { text: string; bar: string }> = {
+  healthy: { text: 'text-[hsl(var(--success-accent))]', bar: 'bg-[hsl(var(--action-primary))]' },
+  watch: { text: 'text-warning-700 dark:text-warning-300', bar: 'bg-warning-500' },
+  critical: { text: 'text-destructive', bar: 'bg-destructive' },
+  unknown: { text: 'text-muted-foreground', bar: 'bg-surface-500' },
 };
 
 export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, onAsOfDateChange, onScenarioChange, onBudgetChange, onOpenWorkers, onOpenSchedule, onOpenYearSetup, onOpenForecasts, onAddScenario }: OverviewProps) {
@@ -274,7 +274,7 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
   const overallBudgetHealth = budgetHealth(forecast.totals.remainingBudgetCents, year.budgetCents);
   const overallHealthPresentation = forecast.complete
     ? budgetHealthPresentation[overallBudgetHealth]
-    : { label: 'Incomplete forecast', text: 'text-muted-foreground', bar: 'bg-surface-500' };
+    : { text: 'text-muted-foreground', bar: 'bg-surface-500' };
   const selectedScenario = year.scenarios.find((scenario) => scenario.id === scenarioId);
   let runningBalance = year.budgetCents;
   let incompleteToDate = false;
@@ -362,10 +362,7 @@ export function Overview({ year, forecast, forecastRange, asOfDate, scenarioId, 
                   </Field>
                 </div>
                 <div className="min-w-0 md:pl-6">
-                  <div className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground">
-                    <span>{forecast.complete ? 'Remaining' : 'Partial balance'}</span>
-                    <Badge variant="outline" className={overallHealthPresentation.text}>{overallHealthPresentation.label}</Badge>
-                  </div>
+                  <div className="text-[11px] font-medium text-muted-foreground">{forecast.complete ? 'Remaining' : 'Partial balance'}</div>
                   <div className={`mt-1 font-mono text-[24px] font-semibold tracking-tight tabular-nums ${overallHealthPresentation.text}`}>{formatCurrency(forecast.totals.remainingBudgetCents)}</div>
                 </div>
               </div>
