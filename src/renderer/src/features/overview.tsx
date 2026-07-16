@@ -202,18 +202,18 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
   const hoursToDate = totals.assumedWorkedHours + totals.correctedHours;
   const missingPeriods = forecast.coverage.filter((period) => period.status === 'missing').length;
   return (
-    <section className="border-t border-border px-5 py-5" aria-label="Fiscal-year hours">
-      <div className="mb-4 flex items-start justify-between gap-4">
-        <div>
+    <section className="border-t border-border px-5 py-4" aria-label="Fiscal-year hours">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <h2 className="text-[13px] font-semibold">Hours through the fiscal year</h2>
-          <p className="mt-0.5 text-[10px] text-muted-foreground">What the current projection is based on</p>
+          <span className="text-[10px] text-muted-foreground">Current projection sources</span>
         </div>
-        <div className="text-right"><div className="text-[10px] text-muted-foreground">As of</div><div className="mt-0.5 font-mono text-[10px] font-medium">{formatLongDate(asOfDate)}</div></div>
+        <div className="font-mono text-[10px] text-muted-foreground">As of {formatLongDate(asOfDate)}</div>
       </div>
       <div className="grid grid-cols-12">
         {months.map((month) => <div key={month} className="text-center font-mono text-[10px] text-muted-foreground">{month}</div>)}
       </div>
-      <div className="relative mt-2 h-4 overflow-hidden rounded bg-surface-800">
+      <div className="relative mt-1.5 h-4 overflow-hidden rounded bg-surface-800">
         {coverageSegments.map((segment) => {
           const left = Math.max(0, ((parseIsoDate(segment.startDate).getTime() - start) / (end - start)) * 100);
           const right = Math.min(100, ((parseIsoDate(addDays(segment.endDate, 1)).getTime() - start) / (end - start)) * 100);
@@ -221,14 +221,26 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
         })}
         <div className="absolute inset-y-0 w-px bg-foreground" style={{ left: `${seam}%` }} />
       </div>
-      <div className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
-        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-500" />Hours to date</div><div className="mt-1 font-mono text-[14px] font-semibold">{hoursToDate.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">From schedules{totals.correctedHours > 0 ? `, including ${totals.correctedHours.toFixed(1)}h corrected` : ''}</div></div>
-        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-300" />Scheduled next</div><div className="mt-1 font-mono text-[14px] font-semibold">{totals.scheduledHours.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">Exact shifts already entered</div></div>
-        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-600" />Estimated</div><div className="mt-1 font-mono text-[14px] font-semibold">{totals.estimatedHours.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">Predicted where shifts are unknown</div></div>
-        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 border border-dashed border-warning-500/70 bg-warning-500/10" />Not forecast</div><div className="mt-1 font-mono text-[14px] font-semibold">{missingPeriods === 0 ? 'None' : `${missingPeriods} period${missingPeriods === 1 ? '' : 's'}`}</div><div className="mt-0.5 text-[10px] text-muted-foreground">{missingPeriods === 0 ? 'The full year is covered' : 'Needs a schedule or estimate'}</div></div>
+      <div className="mt-3 grid gap-y-3 sm:grid-cols-2 lg:grid-cols-4 lg:gap-y-0 lg:divide-x lg:divide-border">
+        <div className="min-w-0 lg:pr-4">
+          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 shrink-0 rounded-[1px] bg-surface-500" />Hours to date</div><div className="shrink-0 font-mono text-[13px] font-semibold">{hoursToDate.toFixed(1)}h</div></div>
+          <div className="mt-1 truncate text-[10px] text-muted-foreground">From schedules{totals.correctedHours > 0 ? `, including ${totals.correctedHours.toFixed(1)}h corrected` : ''}</div>
+        </div>
+        <div className="min-w-0 lg:px-4">
+          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 shrink-0 rounded-[1px] bg-surface-300" />Scheduled next</div><div className="shrink-0 font-mono text-[13px] font-semibold">{totals.scheduledHours.toFixed(1)}h</div></div>
+          <div className="mt-1 truncate text-[10px] text-muted-foreground">Exact shifts already entered</div>
+        </div>
+        <div className="min-w-0 lg:px-4">
+          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 shrink-0 rounded-[1px] bg-surface-600" />Estimated</div><div className="shrink-0 font-mono text-[13px] font-semibold">{totals.estimatedHours.toFixed(1)}h</div></div>
+          <div className="mt-1 truncate text-[10px] text-muted-foreground">Predicted where shifts are unknown</div>
+        </div>
+        <div className="min-w-0 lg:pl-4">
+          <div className="flex items-center justify-between gap-3"><div className="flex min-w-0 items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 shrink-0 border border-dashed border-warning-500/70 bg-warning-500/10" />Not forecast</div><div className="shrink-0 font-mono text-[13px] font-semibold">{missingPeriods === 0 ? 'None' : `${missingPeriods} period${missingPeriods === 1 ? '' : 's'}`}</div></div>
+          <div className="mt-1 truncate text-[10px] text-muted-foreground">{missingPeriods === 0 ? 'The full year is covered' : 'Needs a schedule or estimate'}</div>
+        </div>
       </div>
-      {totals.scenarioHours > 0 && <p className="mt-3 text-[10px] text-muted-foreground">This scenario also adds {totals.scenarioHours.toFixed(1)} hypothetical hours.</p>}
-      <p className="mt-3 border-t border-border pt-3 text-[10px] text-muted-foreground">Hours to date come from the schedule unless corrected in Changes; they are not independently confirmed against payroll.</p>
+      {totals.scenarioHours > 0 && <p className="mt-2 text-[10px] text-muted-foreground">This scenario also adds {totals.scenarioHours.toFixed(1)} hypothetical hours.</p>}
+      <p className="mt-2 border-t border-border pt-2 text-[10px] text-muted-foreground">Hours to date come from the schedule unless corrected in Changes; they are not independently confirmed against payroll.</p>
     </section>
   );
 }
