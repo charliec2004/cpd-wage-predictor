@@ -54,7 +54,7 @@ export function Adjustments({ year, onChange, openRequest }: AdjustmentsProps) {
     <div className="animate-fade-in space-y-4">
       <div>
         <h1 className="text-[18px] font-semibold tracking-tight">Changes</h1>
-        <p className="mt-1 text-[12px] text-muted-foreground">Schedules are assumed worked. Record only what happened differently.</p>
+        <p className="mt-1 text-[12px] text-muted-foreground">Hours to date come from the schedule. Record only what happened differently.</p>
       </div>
       <NoticePanel
         variant="info"

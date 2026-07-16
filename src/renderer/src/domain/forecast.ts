@@ -463,14 +463,14 @@ function dateHasCorrection(year: FiscalYear, date: string): boolean {
 }
 
 const coverageSegmentLabels: Record<ForecastCoverageSegmentState, string> = {
-  'assumed-worked': 'Past schedule is assumed worked; payroll is not independently confirmed',
-  corrected: 'Past hours include a manual actual-hours correction',
-  scheduled: 'Future exact shifts are known but not yet worked',
+  'assumed-worked': 'Hours to date based on the schedule; payroll is not independently confirmed',
+  corrected: 'Hours to date include a manual correction',
+  scheduled: 'Upcoming exact shifts are already entered',
   estimated: 'Hours are predicted from a saved staffing estimate',
-  'assumed-and-estimated': 'Past hours combine assumed schedules with an estimate',
-  'scheduled-and-estimated': 'Future exact shifts and estimated staffing are combined',
+  'assumed-and-estimated': 'Past hours combine the schedule with an estimate',
+  'scheduled-and-estimated': 'Upcoming exact shifts and estimated staffing are combined',
   'no-staffing': 'Explicitly no student staffing planned',
-  missing: 'Future staffing is unknown and contributes no assumed dollars',
+  missing: 'No schedule or estimate has been entered',
 };
 
 export function assessForecastCoverageSegments(year: FiscalYear, asOfDate: string): ForecastCoverageSegment[] {
@@ -538,10 +538,10 @@ export function assessForecastCoverage(year: FiscalYear, asOfDate: string): Peri
         sourceLabel = estimate?.sourceLabel ?? 'Saved staffing estimate';
       } else if (hasPastExact && hasFutureExact) {
         status = 'worked-and-scheduled';
-        sourceLabel = 'Schedule before today is assumed worked; future shifts are scheduled';
+        sourceLabel = 'Hours to date use the schedule; upcoming shifts are entered';
       } else if (hasPastExact) {
         status = 'worked';
-        sourceLabel = states.has('corrected') ? 'Past schedule with actual-hours corrections' : 'Schedule is assumed worked unless corrected';
+        sourceLabel = states.has('corrected') ? 'Hours to date include corrections' : 'Hours to date come from the schedule';
       } else if (hasFutureExact) {
         status = 'scheduled';
         sourceLabel = 'Exact worker schedules';

@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge';
 import { Button } from '../../components/ui/button';
 import { DatePicker } from '../../components/ui/date-picker';
 import type { ForecastCoverageSegment, ForecastRange, ForecastResult, WeeklyForecastRow } from '../domain/forecast';
-import { formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
+import { addDays, formatLongDate, formatShortDate, parseIsoDate } from '../domain/dates';
 import { formatCurrency, formatCurrencyPrecise } from '../lib/format';
 import { Field, MoneyInput } from '../components/form-controls';
 import { budgetHealth, type BudgetHealth } from '../domain/budget-health';
@@ -35,11 +35,11 @@ const scenarioRoleDescriptions: Record<FiscalYear['scenarios'][number]['role'], 
 };
 
 function stateBadge(row: WeeklyForecastRow) {
-  if (row.state === 'assumed-worked') return <Badge variant="outline">Worked</Badge>;
-  if (row.state === 'corrected') return <Badge variant="outline">Actual correction</Badge>;
+  if (row.state === 'assumed-worked') return <Badge variant="outline">Hours to date</Badge>;
+  if (row.state === 'corrected') return <Badge variant="outline">Corrected hours</Badge>;
   if (row.state === 'mixed') return <Badge className="border-warning-500/40 bg-warning-500/10 text-warning-700 dark:text-warning-300">This week</Badge>;
   if (row.state === 'estimated') return <Badge className="border-dashed border-surface-500 bg-transparent text-foreground">Estimated</Badge>;
-  if (row.state === 'missing') return <Badge variant="outline" className="border-dashed">Missing forecast</Badge>;
+  if (row.state === 'missing') return <Badge variant="outline" className="border-dashed">Not forecast</Badge>;
   if (row.state === 'scenario') return <Badge className="border-dashed">Scenario</Badge>;
   return <Badge variant="secondary">Scheduled</Badge>;
 }
@@ -184,13 +184,13 @@ function FiscalContext({ year, asOfDate, onOpenYearSetup }: { year: FiscalYear; 
 
 const coverageBarClass: Record<ForecastCoverageSegment['state'], string> = {
   'assumed-worked': 'bg-surface-500',
-  corrected: 'bg-foreground',
+  corrected: 'bg-surface-500',
   scheduled: 'bg-surface-300',
-  estimated: 'border border-dashed border-surface-400 bg-surface-700/40',
-  'assumed-and-estimated': 'border border-dashed border-surface-300 bg-surface-600',
-  'scheduled-and-estimated': 'border border-dashed border-surface-300 bg-surface-700/60',
-  'no-staffing': 'border border-surface-600 bg-surface-900',
-  missing: 'border border-dashed border-warning-500/70 bg-transparent',
+  estimated: 'bg-surface-600',
+  'assumed-and-estimated': 'bg-surface-600',
+  'scheduled-and-estimated': 'bg-surface-600',
+  'no-staffing': 'bg-surface-800',
+  missing: 'border-x border-dashed border-warning-500/70 bg-warning-500/10',
 };
 
 function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: ForecastResult }) {
@@ -199,32 +199,36 @@ function ForecastRunway({ year, forecast }: { year: FiscalYear; forecast: Foreca
   const end = parseIsoDate(year.endDate).getTime();
   const seam = Math.min(100, Math.max(0, ((parseIsoDate(asOfDate).getTime() - start) / (end - start)) * 100));
   const months = ['Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May'];
+  const hoursToDate = totals.assumedWorkedHours + totals.correctedHours;
+  const missingPeriods = forecast.coverage.filter((period) => period.status === 'missing').length;
   return (
-    <section className="border-t border-border px-5 py-4" aria-label="Fiscal-year timeline">
-      <div className="mb-3 flex items-center justify-between gap-4">
-        <h2 className="text-[13px] font-semibold">Fiscal year</h2>
-        <div className="font-mono text-[10px] text-muted-foreground">Today · {formatLongDate(asOfDate)}</div>
+    <section className="border-t border-border px-5 py-5" aria-label="Fiscal-year hours">
+      <div className="mb-4 flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[13px] font-semibold">Hours through the fiscal year</h2>
+          <p className="mt-0.5 text-[10px] text-muted-foreground">What the current projection is based on</p>
+        </div>
+        <div className="text-right"><div className="text-[10px] text-muted-foreground">As of</div><div className="mt-0.5 font-mono text-[10px] font-medium">{formatLongDate(asOfDate)}</div></div>
       </div>
       <div className="grid grid-cols-12">
         {months.map((month) => <div key={month} className="text-center font-mono text-[10px] text-muted-foreground">{month}</div>)}
       </div>
-      <div className="relative mt-2 h-3 overflow-hidden rounded-sm bg-surface-800">
+      <div className="relative mt-2 h-4 overflow-hidden rounded bg-surface-800">
         {coverageSegments.map((segment) => {
           const left = Math.max(0, ((parseIsoDate(segment.startDate).getTime() - start) / (end - start)) * 100);
-          const right = Math.min(100, ((parseIsoDate(segment.endDate).getTime() - start) / (end - start)) * 100);
+          const right = Math.min(100, ((parseIsoDate(addDays(segment.endDate, 1)).getTime() - start) / (end - start)) * 100);
           return <div key={`${segment.periodId}-${segment.startDate}-${segment.state}`} title={`${segment.periodName} · ${formatShortDate(segment.startDate)}–${formatShortDate(segment.endDate)} · ${segment.sourceLabel}`} className={`absolute inset-y-0 ${coverageBarClass[segment.state]}`} style={{ left: `${left}%`, width: `${Math.max(0.5, right - left)}%` }} />;
         })}
-        <div className="absolute -top-1 h-4 w-px bg-foreground" style={{ left: `${seam}%` }} />
+        <div className="absolute inset-y-0 w-px bg-foreground" style={{ left: `${seam}%` }} />
       </div>
-      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
-        <span><span className="mr-1.5 inline-block h-2 w-3 bg-surface-500" />Assumed past · {totals.assumedWorkedHours.toFixed(1)}h</span>
-        {totals.correctedHours > 0 && <span><span className="mr-1.5 inline-block h-2 w-3 bg-foreground" />Actual corrections · {totals.correctedHours.toFixed(1)}h</span>}
-        <span><span className="mr-1.5 inline-block h-2 w-3 bg-surface-300" />Future scheduled · {totals.scheduledHours.toFixed(1)}h</span>
-        <span><span className="mr-1.5 inline-block h-2 w-3 border border-dashed border-surface-400" />Estimated · {totals.estimatedHours.toFixed(1)}h</span>
-        {totals.scenarioHours > 0 && <span>Scenario · {totals.scenarioHours.toFixed(1)}h</span>}
-        <span><span className="mr-1.5 inline-block h-2 w-3 border border-dashed border-warning-500/70" />Missing</span>
+      <div className="mt-4 grid gap-x-5 gap-y-3 sm:grid-cols-2 lg:grid-cols-4">
+        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-500" />Hours to date</div><div className="mt-1 font-mono text-[14px] font-semibold">{hoursToDate.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">From schedules{totals.correctedHours > 0 ? `, including ${totals.correctedHours.toFixed(1)}h corrected` : ''}</div></div>
+        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-300" />Scheduled next</div><div className="mt-1 font-mono text-[14px] font-semibold">{totals.scheduledHours.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">Exact shifts already entered</div></div>
+        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 rounded-[1px] bg-surface-600" />Estimated</div><div className="mt-1 font-mono text-[14px] font-semibold">{totals.estimatedHours.toFixed(1)}h</div><div className="mt-0.5 text-[10px] text-muted-foreground">Predicted where shifts are unknown</div></div>
+        <div><div className="flex items-center gap-2 text-[10px] text-muted-foreground"><span className="h-2 w-3 border border-dashed border-warning-500/70 bg-warning-500/10" />Not forecast</div><div className="mt-1 font-mono text-[14px] font-semibold">{missingPeriods === 0 ? 'None' : `${missingPeriods} period${missingPeriods === 1 ? '' : 's'}`}</div><div className="mt-0.5 text-[10px] text-muted-foreground">{missingPeriods === 0 ? 'The full year is covered' : 'Needs a schedule or estimate'}</div></div>
       </div>
-      <p className="mt-2 text-[10px] text-muted-foreground">Past schedules are assumed worked unless a correction is entered. This app does not independently confirm payroll payment.</p>
+      {totals.scenarioHours > 0 && <p className="mt-3 text-[10px] text-muted-foreground">This scenario also adds {totals.scenarioHours.toFixed(1)} hypothetical hours.</p>}
+      <p className="mt-3 border-t border-border pt-3 text-[10px] text-muted-foreground">Hours to date come from the schedule unless corrected in Changes; they are not independently confirmed against payroll.</p>
     </section>
   );
 }

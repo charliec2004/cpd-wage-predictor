@@ -404,7 +404,7 @@ export function Schedule({ year, onWorkersChange, onClosuresChange, onPeriodsCha
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border bg-surface-900/35 px-4 py-2.5 text-[10px] text-muted-foreground">
             <span>Select a day to change its exact shifts. Past days open the Changes workflow.</span>
-            <span>Scheduled hours before today are assumed worked unless corrected.</span>
+            <span>Hours to date come from the schedule unless corrected in Changes.</span>
           </div>
         </section>
       ) : view === 'repeating' ? (

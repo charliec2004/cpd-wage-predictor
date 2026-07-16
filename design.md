@@ -8,7 +8,7 @@ The interface is a serious desktop planning tool. It should resemble calm editor
 
 ## 2. Design thesis
 
-The product's signature is the **forecast seam**: a precise boundary on the fiscal timeline separating the past operational record from the future plan. Because the current app does not import payroll, past schedules are labeled `Assumed worked` unless CPD entered an actual-hours correction. The seam moves as time advances. Assumed past, corrected, scheduled, estimated, scenario, and missing values must be distinguishable through labels, texture, border treatment, and density before color is used.
+The product's signature is the **forecast seam**: a precise boundary on the fiscal timeline separating the past operational record from the future plan. Because the current app does not import payroll, the interface calls past schedule-derived time `Hours to date` and explains that corrections are already included. The seam moves as time advances. Hours to date, scheduled, estimated, scenario, and not-forecast values must be distinguishable through labels, texture, border treatment, and density before color is used.
 
 ```text
 ACTUAL / ACCRUED                    FORECAST / SCENARIO

@@ -62,18 +62,18 @@ The forecast seam is a thin temporal rule on the annual runway at the selected a
 
 Each meaningful academic period shows its exact start and end dates and resolves into dated source ranges:
 
-- `Assumed worked`: a past schedule is used because no correction says otherwise. This is not labeled payroll-confirmed.
-- `Actual correction`: CPD manually replaced the scheduled hours for a day or week in Changes.
+- `Hours to date`: a past schedule is used, with any day or week corrections already applied. This is not labeled payroll-confirmed.
+- `Corrected hours`: CPD manually replaced the scheduled hours for a day or week in Changes.
 - `Scheduled`: exact future shifts are known but have not happened.
 - `Estimated`: unknown time uses a saved staffing estimate.
 - `No staffing`: CPD explicitly chose zero student staffing.
-- `Missing`: neither a schedule nor an estimate exists. Missing time contributes no assumed dollars and makes the annual forecast incomplete.
+- `Not forecast`: neither a schedule nor an estimate exists. This time contributes no assumed dollars and makes the annual forecast incomplete.
 
 For an unknown period, `Plan period` recommends the closest earlier comparable period. Same-type periods rank first; Fall and Spring can seed each other. The source worker patterns are copied as a snapshot, and CPD can edit lower, expected, and higher paid team hours per normal week. Defaults are 85%, 100%, and 115% of the comparable pattern. Full closures and early closures reduce estimated hours. Exact schedules replace the estimate wherever entered.
 
 Outlook uses the expected estimate by default and shows a lower-to-higher CPD-cost range when those variants differ. Its timeline and weekly table distinguish assumed past, corrected hours, exact future schedules, estimates, scenarios, and missing coverage. Once a missing week is reached, dollar cells say `Not forecast` and the running balance says `Incomplete` instead of showing a misleading `$0`.
 
-The app currently has no payroll import. Past scheduled hours therefore remain `Assumed worked` until corrected; the interface must not call them posted or payroll-confirmed.
+The app currently has no payroll import. `Hours to date` therefore means schedule-derived hours with corrections applied; the interface must not call them posted or payroll-confirmed.
 
 ## Self-critique and revision
 

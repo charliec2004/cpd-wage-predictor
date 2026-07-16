@@ -23,24 +23,24 @@ interface ForecastPlannerProps {
 }
 
 const statusPresentation: Record<PeriodForecastCoverage['status'], { label: string; detail: string; className: string }> = {
-  worked: { label: 'Assumed worked', detail: 'Past schedule; use Changes when actual hours differ.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
-  'worked-and-scheduled': { label: 'Worked + scheduled', detail: 'Past shifts are assumed worked; future shifts are exact.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
-  scheduled: { label: 'Scheduled', detail: 'Exact future shifts are known but have not happened.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
-  estimated: { label: 'Estimated', detail: 'Future hours come from a saved staffing estimate.', className: 'border-dashed border-surface-500 bg-transparent text-foreground' },
-  'scheduled-and-estimated': { label: 'Schedule + estimate', detail: 'Exact schedules replace the estimate where entered.', className: 'border-dashed border-surface-400 bg-surface-800/40 text-foreground' },
+  worked: { label: 'Hours to date', detail: 'Based on the schedule, with any corrections already applied.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
+  'worked-and-scheduled': { label: 'To date + scheduled', detail: 'Earlier hours are included; upcoming shifts are entered.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
+  scheduled: { label: 'Scheduled', detail: 'Exact upcoming shifts are already entered.', className: 'border-surface-500/60 bg-surface-800 text-foreground' },
+  estimated: { label: 'Estimated', detail: 'Hours are predicted because exact shifts are not entered yet.', className: 'border-dashed border-surface-500 bg-transparent text-foreground' },
+  'scheduled-and-estimated': { label: 'Partly scheduled', detail: 'Exact shifts are used where entered; an estimate fills the rest.', className: 'border-dashed border-surface-400 bg-surface-800/40 text-foreground' },
   'no-staffing': { label: 'No staffing', detail: 'An explicit zero-hour decision.', className: 'border-border bg-transparent text-muted-foreground' },
-  missing: { label: 'Missing', detail: 'Not counted as $0; this prevents an official year-end forecast.', className: 'border-dashed border-warning-500/70 bg-transparent text-warning-700 dark:text-warning-300' },
+  missing: { label: 'Not forecast', detail: 'No schedule or estimate yet; the annual forecast is incomplete.', className: 'border-dashed border-warning-500/70 bg-transparent text-warning-700 dark:text-warning-300' },
 };
 
 const segmentLabels: Record<ForecastCoverageSegment['state'], string> = {
-  'assumed-worked': 'Assumed worked',
-  corrected: 'Actual correction',
+  'assumed-worked': 'Hours to date',
+  corrected: 'Corrected hours',
   scheduled: 'Scheduled',
   estimated: 'Estimated',
-  'assumed-and-estimated': 'Assumed + estimated',
+  'assumed-and-estimated': 'Past estimate',
   'scheduled-and-estimated': 'Scheduled + estimated',
   'no-staffing': 'No staffing',
-  missing: 'Missing',
+  missing: 'Not forecast',
 };
 
 function replaceEstimate(estimates: PeriodEstimate[], estimate: PeriodEstimate): PeriodEstimate[] {
@@ -125,7 +125,7 @@ export function ForecastPlanner({ workspace, year, onChange, onOpenSchedule }: F
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-border px-4 py-3.5">
         <div>
           <div className="flex items-center gap-2"><CalendarCheck2 className="h-4 w-4 text-muted-foreground" /><h2 id="forecast-coverage-heading" className="text-[14px] font-semibold">Fiscal-year coverage</h2></div>
-          <p className="mt-1 text-[11px] text-muted-foreground">Every date range must be past/known, future/scheduled, estimated, or explicitly unstaffed. Missing time is never treated as $0.</p>
+          <p className="mt-1 text-[11px] text-muted-foreground">See what is already included, what is scheduled next, and which periods still need an estimate.</p>
         </div>
         <div className="text-right"><div className="font-mono text-[15px] font-semibold">{completeCount}/{coverage.length}</div><div className="text-[10px] text-muted-foreground">periods covered</div></div>
       </div>
@@ -158,7 +158,7 @@ export function ForecastPlanner({ workspace, year, onChange, onOpenSchedule }: F
           );
         })}
       </div>
-      <div className="flex items-center gap-2 border-t border-border bg-surface-900/35 px-4 py-2.5 text-[10px] text-muted-foreground"><CircleDashed className="h-3.5 w-3.5" />Past schedules are assumed worked until corrected in Changes; the app does not independently verify payroll. Exact future schedules replace estimates where entered.</div>
+      <div className="flex items-center gap-2 border-t border-border bg-surface-900/35 px-4 py-2.5 text-[10px] text-muted-foreground"><CircleDashed className="h-3.5 w-3.5" />Hours to date use the schedule unless corrected in Changes. Upcoming exact shifts replace estimates as they are entered.</div>
 
       <DialogShell
         open={Boolean(period && draft)}
